@@ -304,7 +304,7 @@ bool UInventoryGrid::MatchesPlacementRules(const UInventoryItem* Item) const
 			return Rules.AllowedStorageGrids.Contains(Item_Category);
 		}
 		return true;
-            
+          
 	case EGridRestrictionType::Specialized:
 		// Custom logic (e.g., only medical items)
 		return AllowedItemTypes.Contains(Item->GetItemManifest().GetItemCategory());
