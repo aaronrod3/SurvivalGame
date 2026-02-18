@@ -14,6 +14,8 @@ class UTextBlock;
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FPopUpMenuSplit, int32, SplitAmount, int32, Index);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FPopUpMenuDrop, int32, Index);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FPopUpMenuConsume, int32, Index);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FPopUpMenuAssign, int32, Index);
+
 
 
 UCLASS()
@@ -29,6 +31,8 @@ public:
 	FPopUpMenuSplit OnSplit;
 	FPopUpMenuDrop OnDrop;
 	FPopUpMenuConsume OnConsume;
+	FPopUpMenuAssign OnAssign;
+
 	
 	int32 GetSplitAmount() const;
 	void CollapseSplitButton() const;
@@ -37,6 +41,9 @@ public:
 	FVector2D GetBoxSize() const;
 	void SetGridIndex(int32 Index) { GridIndex = Index; }
 	int32 GetGridIndex() const { return GridIndex; }
+	void CollapseAssignButton() const;
+	void ShowAssignButton() const;
+
 	
 private:
 	
@@ -58,6 +65,10 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Consume;
 	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_Assign;
+
+	
 	int32 GridIndex{INDEX_NONE};
 	
 	UFUNCTION()
@@ -68,6 +79,9 @@ private:
 	void DropButtonClicked();
 	UFUNCTION()
 	void ConsumeButtonClicked();
+	UFUNCTION()
+	void AssignButtonClicked();
+
 	
 	void CollapsedSplitButton() const;
 	void CollapsedConsumeButton() const;

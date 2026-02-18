@@ -43,6 +43,35 @@ public:
 	void HideCursor();
 	void SetOwningCanvas(UCanvasPanel* OwningCanvas);
 	
+	/**
+	* Get the storage grid type for specialized storage grids
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	EStorageGridType GetStorageGridType() const { return StorageGridType; }
+
+	/**
+	 * Check if this grid accepts a specific item based on placement rules
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool CanAcceptItem(const UInventoryItem* Item) const;
+
+	/**
+	 * Get reference to parent spatial inventory
+	 */
+	void SetSpatialInventory(class USpatialInventory* SpatialInv);
+	
+	/**
+	 * Attempt to add item with priority routing
+	 * Returns true if item was successfully placed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool TryAddItemWithRouting(UInventoryItem* Item);
+
+	/**
+	 * Get routing priority for this grid type and item
+	 * Lower number = higher priority
+	 */
+	int32 GetRoutingPriority(const UInventoryItem* Item) const;
 
 private:
 	
@@ -126,6 +155,12 @@ private:
 	void FillInStack(const int32 FillAmount, const int32 Remainder, const int32 Index);
 	void CreateItemPopUp(const int32 GridIndex);
 	
+	/**
+	* Reference to parent spatial inventory for quick slot management
+	*/
+	UPROPERTY()
+	TWeakObjectPtr<class USpatialInventory> SpatialInventory;
+	
 	
 	
 	// =============================
@@ -182,9 +217,49 @@ private:
 	TArray<EItem_Category> AllowedItemTypes;
 	
 	
-	// remove after full refactor
+	/**
+	* Check if item matches equipment restrictions
+	 */
+	bool MatchesEquipmentRestriction(const UInventoryItem* Item) const;
+
+	/**
+	 * Check if item matches storage restrictions
+	 */
+	bool MatchesStorageRestriction(const UInventoryItem* Item) const;
+
+	/**
+	 * Check if item is an equippable type
+	 */
+	bool IsEquippableItem(EItem_Category Category) const;
+
+	/**
+	 * Check if item is a usable type
+	 */
+	bool IsUsableItem(EItem_Category Category) const;
+
+	/**
+	 * Check if item is misc type
+	 */
+	bool IsMiscItem(EItem_Category Category) const;
+	
+	// DEPRECATED - Use RestrictionType, RequiredEquipmentType, and StorageGridType instead
+	// Will be removed after full refactor
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	EItem_Category Item_Category;
+
+	/**
+	 * Storage Grid Type
+	 * 
+	 * For Storage grids: Identifies what type of storage container this is.
+	 * Used for specialized storage restrictions (e.g., medical pouches, ammo pouches)
+	 * 
+	 * Only visible/used when RestrictionType = Storage
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory",
+			  meta = (AllowPrivateAccess = "true",
+					  EditCondition = "RestrictionType == EGridRestrictionType::Storage",
+					  EditConditionHides))
+	EStorageGridType StorageGridType = EStorageGridType::None;
 	
 	
 	
@@ -244,6 +319,10 @@ private:
 	
 	UFUNCTION()
 	void OnPopUpMenuConsume(int32 Index);
+	
+	UFUNCTION()
+	void OnPopUpMenuAssign(int32 Index);
+
 	
 	
 	

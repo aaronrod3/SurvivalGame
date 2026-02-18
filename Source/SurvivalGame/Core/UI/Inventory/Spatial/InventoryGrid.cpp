@@ -2,10 +2,7 @@
 
 
 #include "InventoryGrid.h"
-
-#include "MovieSceneClipboard.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
-#include "Chaos/Math/Poisson.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "SurvivalGame/Character/Inventory/InventoryComponent.h"
@@ -18,6 +15,7 @@
 #include "SurvivalGame/Core/UI/Utilities/InventoryStatics.h"
 #include "SurvivalGame/Core/UI/Utilities/WidgetUtilities.h"
 #include "SurvivalGame/Core/UI/Inventory/ItemPopUp/ItemPopUp.h"
+#include "SpatialInventory.h"
 
 
 void UInventoryGrid::NativeOnInitialized()
@@ -288,29 +286,25 @@ void UInventoryGrid::ConstructGrid()
 
 bool UInventoryGrid::MatchesPlacementRules(const UInventoryItem* Item) const
 {
-	const FItemPlacementRules& Rules = Item->GetItemManifest().GetPlacementRules();
-
+	if (!Item) return false;
+	
+	const FItemManifest& Manifest = Item->GetItemManifest();
+	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
+	const EItem_Category Item_Category = Rules.EquipmentSlot;
+	
+	// Route based on grid restriction type
 	switch (RestrictionType)
 	{
 	case EGridRestrictionType::Equipment:
-		return Rules.EquipmentSlot == RequiredEquipmentType;
+		return MatchesEquipmentRestriction(Item);
 	case EGridRestrictionType::Storage:
-		// Accept any item that can go in storage
-		if (!Rules.bCanGoInStorage) return false;
-            
-		// Check specific storage restrictions (if any)
-		if (Rules.AllowedStorageGrids.Num() > 0)
-		{
-			return Rules.AllowedStorageGrids.Contains(Item_Category);
-		}
-		return true;
-          
-	case EGridRestrictionType::Specialized:
-		// Custom logic (e.g., only medical items)
-		return AllowedItemTypes.Contains(Item->GetItemManifest().GetItemCategory());
-            
-	default:
+		return MatchesStorageRestriction(Item);
+	case EGridRestrictionType::QuickSlot:
+		// Quick slots dont accept direct placement, only references
 		return false;
+	case EGridRestrictionType::None:
+		// No restrictions, accept anything
+		return true;
 	}
 }
 
@@ -424,6 +418,79 @@ void UInventoryGrid::AddItemAtIndex(UInventoryItem* Item, const int32 Index, con
 	// store new widget in a container
 	SlottedItems.Add(Index, SlottedItem);
 }
+
+bool UInventoryGrid::TryAddItemWithRouting(UInventoryItem* Item)
+{
+	if (!Item || !CanAcceptItem(Item))
+	{
+		return false;
+	}
+	
+	// Check if we have room
+	FSlotAvailabilityResult Result = HasRoomForItem(Item);
+	if (Result.TotalRoomToFill <= 0)
+	{
+		return false;
+	}
+	
+	// Add the item
+	AddItemToIndices(Result, Item);
+	return true;
+}
+
+int32 UInventoryGrid::GetRoutingPriority(const UInventoryItem* Item) const
+{
+	if (!Item)
+	{
+		return INT_MAX;
+	}
+	
+	const FItemManifest& Manifest = Item->GetItemManifest();
+	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
+	const EItem_Category ItemCategory = Rules.EquipmentSlot;
+	
+	// Priority routing:
+	// 1. Equipment items go to empty equipment slots first
+	// 2. Then to storage
+	// 3. Usable/Misc items go straight to storage (skip equipment slots)
+	
+	if (RestrictionType == EGridRestrictionType::Equipment)
+	{
+		// Equipment grid
+		if (IsEquippableItem(ItemCategory))
+		{
+			// Does this item match this equipment slot?
+			if (ItemCategory == RequiredEquipmentType ||
+				(RequiredEquipmentType == EItem_Category::Weapon_Secondary && 
+				 ItemCategory == EItem_Category::Weapon_Primary))
+			{
+				// Priority 1: Matching equipment slot
+				return 1;
+			}
+		}
+		
+		// Not matching equipment - very low priority
+		return 100;
+	}
+	else if (RestrictionType == EGridRestrictionType::Storage)
+	{
+		// Storage grid
+		if (IsEquippableItem(ItemCategory))
+		{
+			// Priority 2: Storage for equipment items (fallback)
+			return 2;
+		}
+		else
+		{
+			// Priority 1: Storage for non-equipment items (primary destination)
+			return 1;
+		}
+	}
+	
+	// Default: low priority
+	return 50;
+}
+
 
 USlottedItem* UInventoryGrid::CreateSlottedItem(UInventoryItem* Item, 
 												const bool bStackable, 
@@ -651,6 +718,12 @@ void UInventoryGrid::RemoveItemFromGrid(UInventoryItem* InventoryItem, const int
 		SlottedItems.RemoveAndCopyValue(GridIndex, FoundSlottedItem);
 		FoundSlottedItem->RemoveFromParent();
 	}
+	
+	// Notify spatial inventory that item was removed (for quick slot updates)
+	if (SpatialInventory.IsValid())
+	{
+		SpatialInventory->OnItemRemovedFromGrid(this, GridIndex);
+	}
 }
 
 
@@ -708,6 +781,31 @@ void UInventoryGrid::AddStacks(const FSlotAvailabilityResult& Result)
 
 void UInventoryGrid::OnSlottedItemClicked(int32 GridIndex, const FPointerEvent& MouseEvent)
 {
+	// check if in quick slot assignment mode
+	if (SpatialInventory.IsValid() && SpatialInventory->IsInAssignmentMode())
+	{
+		// Get item at this index
+		if (UGridSlots* GridSlot = GridSlots[GridIndex])
+		{
+			if (UInventoryItem* Item = GridSlot->GetInventoryItem().Get())
+			{
+				EQuickSlotType TargetSlot = SpatialInventory->GetPendingAssignmentSlot();
+				
+				// Attempt to assign
+				if (SpatialInventory->AssignItemToQuickSlot(Item, this, GridIndex, TargetSlot))
+				{
+					// Assignment succcessful
+					return;
+				}
+			}
+		}
+		
+		// Assignment failed or no item, cancel assignment mode
+		SpatialInventory->CancelQuickSlotAssignment();
+		return;
+	}
+	
+	
 	check(GridSlots.IsValidIndex(GridIndex));
 	UInventoryItem* ClickedInventoryItem = GridSlots[GridIndex]->GetInventoryItem().Get();
 	
@@ -800,6 +898,7 @@ void UInventoryGrid::CreateItemPopUp(const int32 GridIndex)
 		ItemPopUp->CollapseSplitButton();
 	}
 	
+	
 	ItemPopUp->OnDrop.BindDynamic(this, &ThisClass::OnPopUpMenuDrop);
 	
 	if (RightClickedItem->IsUsable())
@@ -811,6 +910,29 @@ void UInventoryGrid::CreateItemPopUp(const int32 GridIndex)
 		ItemPopUp->CollapseConsumeButton();
 	}
 	
+	// Show/hide assign button based on item type
+	if (const UInventoryItem* Item = GridSlots[GridIndex]->GetInventoryItem().Get())
+	{
+		const FItemManifest& Manifest = Item->GetItemManifest();
+		const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
+		
+		// Show assign button only for items that can be quick slotted
+		if (Rules.bCanGoInQuickSlot || IsEquippableItem(Rules.EquipmentSlot))
+		{
+			ItemPopUp->ShowAssignButton();
+		}
+		else
+		{
+			ItemPopUp->CollapseAssignButton();
+		}
+	}
+	else
+	{
+		ItemPopUp->CollapseAssignButton();
+	}
+	
+	ItemPopUp->OnAssign.BindUFunction(this, FName("OnPopUpMenuAssign"));
+
 }
 
 void UInventoryGrid::OnGridSlotClicked(int32 GridIndex, const FPointerEvent& MouseEvent)
@@ -1060,6 +1182,34 @@ void UInventoryGrid::OnPopUpMenuConsume(int32 Index)
 	
 }
 
+void UInventoryGrid::OnPopUpMenuAssign(int32 Index)
+{
+	if (!SpatialInventory.IsValid())
+	{
+		return;
+	}
+
+	// Get the item at this index
+	if (UGridSlots* GridSlot = GridSlots[Index])
+	{
+		if (UInventoryItem* Item = GridSlot->GetInventoryItem())
+		{
+			// Show quick slot selection UI
+			// For now, just assign to Slot_1 as default
+			// TODO: Create a slot selection widget
+			SpatialInventory->BeginQuickSlotAssignment(EQuickSlotType::Slot_1);
+		
+			// Close popup
+			if (ItemPopUp)
+			{
+				ItemPopUp->RemoveFromParent();
+				ItemPopUp = nullptr;
+			}
+		}
+	}
+
+}
+
 
 FVector2D UInventoryGrid::GetDrawSize(const FGridFragment* GridFragment) const 
 {
@@ -1075,6 +1225,130 @@ void UInventoryGrid::SetSlottedItemImage(const USlottedItem* SlottedItem, const 
 	Brush.ImageSize = GetDrawSize(GridFragment);
 	SlottedItem->SetImageBrush(Brush);
 }
+
+void UInventoryGrid::SetSpatialInventory(class USpatialInventory* SpatialInv)
+{
+	SpatialInventory = SpatialInv;
+}
+
+bool UInventoryGrid::CanAcceptItem(const UInventoryItem* Item) const
+{
+	return MatchesPlacementRules(Item);
+}
+
+
+bool UInventoryGrid::MatchesEquipmentRestriction(const UInventoryItem* Item) const
+{
+	if (!Item) return false;
+	
+	const FItemManifest& Manifest = Item->GetItemManifest();
+	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
+	const EItem_Category ItemCategory = Rules.EquipmentSlot;
+	
+	// Equipment grids only accept items that match their required equipment type, and that item must be equippable
+	if (!IsEquippableItem(ItemCategory)) return false;
+	
+	// Special cases: Weapon_Secondary slot accepts both Primary and Secondary weapons
+	if (RequiredEquipmentType == EItem_Category::Weapon_Secondary)
+	{
+		return ItemCategory == EItem_Category::Weapon_Primary || ItemCategory == EItem_Category::Weapon_Secondary;
+	}
+	
+	// Standard case: exact match required
+	return ItemCategory == RequiredEquipmentType;
+	
+}
+
+bool UInventoryGrid::MatchesStorageRestriction(const UInventoryItem* Item) const
+{
+	if (!Item) return false;
+	
+	const FItemManifest& Manifest = Item->GetItemManifest();
+	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
+	
+	// First check: can this go in storage?
+	if (!Rules.bCanGoInStorage) return false;
+	
+	// Second check: if item has specific storage restrictions, verify grid qualifies
+	if (Rules.AllowedStorageGrids.Num() > 0)
+	{
+		// Item is restricted to specific storage types
+		// Check if this grid's storage type is in the allowed list
+		return Rules.AllowedStorageGrids.Contains(StorageGridType);
+	}
+	
+	// Third check: if grid is specialized, chec against allowed itemt types
+	if (AllowedItemTypes.Num() > 0)
+	{
+		// This grid only accepts specific item categories
+		return AllowedItemTypes.Contains(Rules.EquipmentSlot);
+	}
+	
+	// No restrictions , item can go here
+	return true;
+}
+
+bool UInventoryGrid::IsEquippableItem(EItem_Category Category) const
+{
+	switch (Category)
+	{
+	case EItem_Category::Head:
+	case EItem_Category::Eyewear:
+	case EItem_Category::Earwear:
+	case EItem_Category::Face:
+	case EItem_Category::Armor:
+	case EItem_Category::Armband:
+	case EItem_Category::Shirt:
+	case EItem_Category::Pants:
+	case EItem_Category::Backpack:
+	case EItem_Category::Rig:
+	case EItem_Category::Belt:
+	case EItem_Category::Weapon_Primary:
+	case EItem_Category::Weapon_Secondary:
+	case EItem_Category::Weapon_Holster:
+	case EItem_Category::Tool:
+		return true;
+			
+	default:
+		return false;
+	}
+}
+
+bool UInventoryGrid::IsUsableItem(EItem_Category Category) const
+{
+	switch (Category)
+	{
+	case EItem_Category::Usable_Medical:
+	case EItem_Category::Usable_Food:
+	case EItem_Category::Usable_Key:
+		return true;
+			
+	default:
+		return false;
+	}
+}
+
+bool UInventoryGrid::IsMiscItem(EItem_Category Category) const
+{
+	switch (Category)
+	{
+	case EItem_Category::Misc_Ammo:
+	case EItem_Category::Misc_Other:
+		return true;
+			
+	default:
+		return false;
+	}
+}
+
+
+
+
+
+
+
+
+
 
 
 

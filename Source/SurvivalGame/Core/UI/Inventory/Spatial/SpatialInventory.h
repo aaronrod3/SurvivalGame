@@ -6,6 +6,7 @@
 #include "InventoryGrid.h"
 #include "Components/WidgetSwitcher.h"
 #include "SurvivalGame/Core/UI/Inventory/InventoryBase.h"
+#include "SurvivalGame/Core/UI/Inventory/Types/QuickSlotTypes.h"
 #include "SpatialInventory.generated.h"
 
 class UCanvasPanel;
@@ -28,7 +29,51 @@ public:
 	UInventoryGrid* GetGridForEquipmentSlot(EItem_Category Slot) const;
 	TArray<UInventoryGrid*> GetAllStorageGrids() const;
 	
+	/**
+	* Quick Slot Management
+	*/
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	bool AssignItemToQuickSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 StorageIndex, EQuickSlotType SlotType);
+
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	void ClearQuickSlot(EQuickSlotType SlotType);
+
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	UInventoryItem* GetItemFromQuickSlot(EQuickSlotType SlotType) const;
+
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	void UpdateQuickSlotReference(UInventoryGrid* Grid, int32 OldIndex, int32 NewIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	void OnItemRemovedFromGrid(UInventoryGrid* Grid, int32 GridIndex);
+	
+	/**
+	* Enable assignment mode - next item clicked will be assigned to this slot
+	*/
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	void BeginQuickSlotAssignment(EQuickSlotType TargetSlot);
+
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	void CancelQuickSlotAssignment();
+
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	bool IsInAssignmentMode() const { return bInQuickSlotAssignmentMode; }
+
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	EQuickSlotType GetPendingAssignmentSlot() const { return PendingQuickSlotType; }
+	
 private:
+	
+	/**
+	* Check if an item can be assigned to a specific quick slot
+	*/
+	bool CanAssignToQuickSlot(const UInventoryItem* Item, EQuickSlotType SlotType) const;
+
+	/**
+	 * Find a replacement item of the same type when a stack is consumed
+	 */
+	UInventoryItem* FindReplacementItem(const UInventoryItem* ConsumedItem, UInventoryGrid*& OutGrid, int32& OutIndex);
+	
 	
 	// widget switcher, may not be used since everything will be on same screen
 	//UPROPERTY(meta = (BindWidget))
@@ -67,9 +112,38 @@ private:
 	TObjectPtr<UInventoryGrid> Grid_Pocket_Slots;
 	
 	
+	// =============================
+	// QUICK SLOT PROPERTIES
+	// =============================
+
+	/**
+	 * Map of quick slot references
+	 * Key: EQuickSlotType, Value: FQuickSlotReference
+	 */
+	UPROPERTY()
+	TMap<EQuickSlotType, FQuickSlotReference> QuickSlotReferences;
+
+	/**
+	 * Is the player in quick slot assignment mode?
+	 */
+	UPROPERTY()
+	bool bInQuickSlotAssignmentMode = false;
+
+	/**
+	 * The quick slot waiting for item assignment
+	 */
+	UPROPERTY()
+	EQuickSlotType PendingQuickSlotType = EQuickSlotType::Slot_1;
+
+	/**
+	 * Delegate to broadcast when quick slot is updated (for UI updates)
+	 */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnQuickSlotUpdated, EQuickSlotType, SlotType, UInventoryItem*, Item);
+
+	UPROPERTY(BlueprintAssignable, Category = "QuickSlot")
+	FOnQuickSlotUpdated OnQuickSlotUpdated;
 	
 	
-	// add quick slot bar
 	
 	// add stash later
 	
