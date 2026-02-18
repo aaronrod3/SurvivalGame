@@ -290,7 +290,7 @@ bool UInventoryGrid::MatchesPlacementRules(const UInventoryItem* Item) const
 	
 	const FItemManifest& Manifest = Item->GetItemManifest();
 	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
-	const EItem_Category Item_Category = Rules.EquipmentSlot;
+	const EItem_Category ItemCategory = Rules.EquipmentSlot;
 	
 	// Route based on grid restriction type
 	switch (RestrictionType)
@@ -303,7 +303,8 @@ bool UInventoryGrid::MatchesPlacementRules(const UInventoryItem* Item) const
 		// Quick slots dont accept direct placement, only references
 		return false;
 	case EGridRestrictionType::None:
-		// No restrictions, accept anything
+	default:
+		// No restrictions - accept anything
 		return true;
 	}
 }
@@ -1192,7 +1193,7 @@ void UInventoryGrid::OnPopUpMenuAssign(int32 Index)
 	// Get the item at this index
 	if (UGridSlots* GridSlot = GridSlots[Index])
 	{
-		if (UInventoryItem* Item = GridSlot->GetInventoryItem())
+		if (UInventoryItem* Item = GridSlot->GetInventoryItem().Get())
 		{
 			// Show quick slot selection UI
 			// For now, just assign to Slot_1 as default

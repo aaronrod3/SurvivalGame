@@ -253,7 +253,7 @@ bool USpatialInventory::CanAssignToQuickSlot(const UInventoryItem* Item, EQuickS
 	}
 }
 
-UInventoryItem* USpatialInventory::FindReplacementItem(const UInventoryItem* ConsumedItem, UInventoryGrid*& OutGrid, int32& OutIndex)
+UInventoryItem* USpatialInventory::FindReplacementItem(const UInventoryItem* ConsumedItem, TWeakObjectPtr<UInventoryGrid>& OutGrid, int32& OutIndex)
 {
 	if (!ConsumedItem)
 	{

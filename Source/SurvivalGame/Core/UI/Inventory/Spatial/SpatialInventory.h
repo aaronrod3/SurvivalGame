@@ -72,8 +72,7 @@ private:
 	/**
 	 * Find a replacement item of the same type when a stack is consumed
 	 */
-	UInventoryItem* FindReplacementItem(const UInventoryItem* ConsumedItem, UInventoryGrid*& OutGrid, int32& OutIndex);
-	
+	UInventoryItem* FindReplacementItem(const UInventoryItem* ConsumedItem, TWeakObjectPtr<UInventoryGrid>& OutGrid, int32& OutIndex);
 	
 	// widget switcher, may not be used since everything will be on same screen
 	//UPROPERTY(meta = (BindWidget))
