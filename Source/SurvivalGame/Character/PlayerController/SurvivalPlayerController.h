@@ -7,7 +7,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "SurvivalGame/Core/UI/HUD/MainHUDWidget.h"
-#include "MyPlayerController.generated.h"
+#include "SurvivalPlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
@@ -15,19 +15,18 @@ class UMainHUDWidget;
 class UInventoryComponent;
 
 UCLASS(Blueprintable, BlueprintType)
-class SURVIVALGAME_API AMyPlayerController : public APlayerController
+class SURVIVALGAME_API ASurvivalPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
 public:
-	AMyPlayerController();
+	ASurvivalPlayerController();
 	
 	virtual void Tick( float DeltaTime ) override;
 	
 protected:
 	virtual void BeginPlay() override;
 	
-	// MOVED HERE
 	virtual void SetupInputComponent() override;
 	
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -37,7 +36,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TArray<TObjectPtr<UInputMappingContext>> InputMappingContexts;
 	
-	// MOVED HERE
 	// Interact Action
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> PrimaryInteractAction;
@@ -48,7 +46,6 @@ private:
 	
 	
 	/*** INVENTORY ***/
-	// MOVED HERE
 	// Weak pointer reference to inventory
 	TWeakObjectPtr<UInventoryComponent> InventoryComponent;
 	
@@ -56,7 +53,7 @@ private:
 	void PrimaryInteract();
 	
 	// Toggle Inventory
-	UFUNCTION(BlueprintCallable, Category = "Input ")
+	UFUNCTION(BlueprintCallable, Category = "Input")
 	void ToggleInventory();
 	
 	/*** UI ***/

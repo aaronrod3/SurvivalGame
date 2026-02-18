@@ -68,7 +68,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Inventory")
 	TSubclassOf<UInventoryBase> InventoryMenuClass;
 	
-	bool BInventoryMenuOpen;
+	bool bInventoryMenuOpen;
 	void OpenInventoryMenu();
 	void CloseInventoryMenu();
 	

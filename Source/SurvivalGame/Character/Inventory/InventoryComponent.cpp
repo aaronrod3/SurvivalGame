@@ -94,7 +94,7 @@ void UInventoryComponent::SpawnDroppedItem(UInventoryItem* Item, int32 StackCoun
 
 void UInventoryComponent::ToggleInventoryMenu()
 {
-	if (BInventoryMenuOpen)
+	if (bInventoryMenuOpen)
 	{
 		CloseInventoryMenu();
 	}
@@ -109,7 +109,7 @@ void UInventoryComponent::OpenInventoryMenu()
 	if (!IsValid(InventoryMenu) || !OwningController.IsValid()) return;
 	
 	InventoryMenu->SetVisibility(ESlateVisibility::Visible);
-	BInventoryMenuOpen = true;
+	bInventoryMenuOpen = true;
 	
 	FInputModeGameAndUI InputMode;
 	OwningController->SetInputMode(InputMode);
@@ -122,7 +122,7 @@ void UInventoryComponent::CloseInventoryMenu()
 	if (!IsValid(InventoryMenu) || !OwningController.IsValid()) return;
 	
 	InventoryMenu->SetVisibility((ESlateVisibility::Collapsed));
-	BInventoryMenuOpen = false;
+	bInventoryMenuOpen = false;
 	
 	FInputModeGameOnly InputMode;
 	OwningController->SetInputMode(InputMode);

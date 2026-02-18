@@ -48,8 +48,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	FORCEINLINE float GetCurrentHealth() const { return CurrentHealth; }
 	
-	/* Setter for Current Health */
-	/* Clamps the value between 0 and MaxHeatlh */
+	/* Setter for Current Health 
+	* Clamps the value between 0 and MaxHealth 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void SetCurrentHealth(float HealthValue);
 	
@@ -69,7 +70,7 @@ private:
 	
 	/*** Camera ***/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* SpringArmComp;
+	USpringArmComponent* SpringArmComp;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* CameraComp;
@@ -83,7 +84,7 @@ private:
 
 	// Look
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* LookAction;
+	TObjectPtr<UInputAction> LookAction;
  
 	// Jump 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -126,24 +127,7 @@ protected:
 	virtual void BeginPlay() override;
 
 
-	
-	
-
-	
-	
-	
 };
-
-
-
-
-
-
-
-
-
-
-
 
 
 

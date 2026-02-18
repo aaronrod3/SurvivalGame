@@ -2,7 +2,7 @@
 
 
 #include "DefaultGameMode.h"
-#include "SurvivalGame/Character/PlayerController/MyPlayerController.h"
+#include "SurvivalGame/Character/PlayerController/SurvivalPlayerController.h"
 #include "SurvivalGame/Framework/SurvivalGameGameInstance.h"
 #include "UObject/ConstructorHelpers.h" // optional if later set up a BP Pawn
 
@@ -10,7 +10,7 @@ ADefaultGameMode::ADefaultGameMode()
 {
 	
 	// Assign player controller class
-	PlayerControllerClass = AMyPlayerController::StaticClass();
+	PlayerControllerClass = ASurvivalPlayerController::StaticClass();
 }
 
 void ADefaultGameMode::StartPlay()

@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "SurvivalGame/Core/UI/Inventory/Types/GridTypes.h"
-#include "GamePlayTagContainer.h"
+#include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "SurvivalGame/Core/Data/Items/Fragments/ItemFragment.h"
 #include "ItemManifest.generated.h"

@@ -29,7 +29,7 @@ void USurvivalAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	
 	bIsInAir = PlayerCharacter->GetCharacterMovement()->IsFalling();
 	
-	BIsAccelerating = PlayerCharacter->GetCharacterMovement()->GetCurrentAcceleration().Size() > 0.f ? true : false;
+	bIsAccelerating = PlayerCharacter->GetCharacterMovement()->GetCurrentAcceleration().Size() > 0.f ? true : false;
 	
 	
 }
