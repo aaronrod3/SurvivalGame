@@ -19,7 +19,7 @@ UInventoryComponent::UInventoryComponent() : InventoryList(this)
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 	bReplicateUsingRegisteredSubObjectList = true;
-	BInventoryMenuOpen = false;
+	bInventoryMenuOpen = false;
 }
 
 

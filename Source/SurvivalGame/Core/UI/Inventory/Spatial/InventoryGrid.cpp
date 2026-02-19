@@ -405,6 +405,18 @@ void UInventoryGrid::AddItemToIndices(const FSlotAvailabilityResult& Result, UIn
 
 void UInventoryGrid::AddItemAtIndex(UInventoryItem* Item, const int32 Index, const bool bStackable, const int32 StackAmount)
 {
+	// hard safety, never allow two widgets to exist at the index
+	if (TObjectPtr<USlottedItem>* ExistingItem = SlottedItems.Find(Index) )
+	{
+		if (IsValid(ExistingItem->Get()))
+		{
+			ExistingItem->Get()->RemoveFromParent();
+		}
+		SlottedItems.Remove(Index);
+	}
+	
+	
+	
 	// Get grid fragments
 	const FGridFragment* GridFragment = GetFragment<FGridFragment>(Item, FragmentTags::GridFragment);
 	// get image fragment
@@ -765,6 +777,9 @@ void UInventoryGrid::AddStacks(const FSlotAvailabilityResult& Result)
 	
 	for (const auto& Availability : Result.SlotAvailabilities)
 	{
+		// guard against indices computed by a different grid
+		if (!GridSlots.IsValidIndex(Availability.Index)) continue;
+		
 		if (Availability.bItemAtIndex)
 		{
 			const auto& GridSlot = GridSlots[Availability.Index];

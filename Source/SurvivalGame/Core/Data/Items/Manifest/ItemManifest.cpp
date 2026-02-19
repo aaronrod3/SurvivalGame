@@ -41,7 +41,12 @@ void FItemManifest::SpawnPickupActor(const UObject* WorldContextObject, const FV
 	
 	// set the item manifest, item category, item type, etc
 	UItemComponent* ItemComp = SpawnedActor->FindComponentByClass<UItemComponent>();
-	check(ItemComp);
+	if (!ItemComp)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Spawned actor does not have an item component"));
+		SpawnedActor->Destroy();
+		return;
+	}
 	
 	ItemComp->InitItemManifest(*this);
 }
