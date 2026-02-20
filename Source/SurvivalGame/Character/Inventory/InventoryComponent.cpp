@@ -135,28 +135,32 @@ void UInventoryComponent::CloseInventoryMenu()
 void UInventoryComponent::TryAddItem(UItemComponent* ItemComponent)
 {
 	FSlotAvailabilityResult Result = InventoryMenu->HasRoomForItem(ItemComponent);
-	
+
 	UInventoryItem* FoundItem = InventoryList.FindFirstItemByType(ItemComponent->GetItemManifest().GetItemType());
 	Result.Item = FoundItem;
-	
+
 	if (Result.TotalRoomToFill == 0)
 	{
 		NoRoomInInventory.Broadcast();
 		return;
 	}
-	
+
+	// Stack first (authoritative), then let UI update
 	if (Result.Item.IsValid() && Result.bStackable)
 	{
-		// add stacks to an item that already exists. only want to update stack count, not create new item
-		OnStackChange.Broadcast(Result);
 		Server_AddStacksToItem(ItemComponent, Result.TotalRoomToFill, Result.Remainder);
+
+		// If standalone/listen server, refresh UI immediately.
+		// If a pure client, UI should refresh via replication / OnRep / fast array callbacks.
+		if (GetOwner()->GetNetMode() == NM_ListenServer || GetOwner()->GetNetMode() == NM_Standalone)
+		{
+			OnStackChange.Broadcast(Result);
+		}
+
+		return;
 	}
-	else if (Result.TotalRoomToFill > 0)
-	{
-		// This item type doesnt exist in the inventory, create a new one, and create all pertinent slots
-		Server_AddNewItem(ItemComponent, Result.bStackable ? Result.TotalRoomToFill : 0);
-	}
-	
+
+	Server_AddNewItem(ItemComponent, Result.bStackable ? Result.TotalRoomToFill : 0);
 }
 
 

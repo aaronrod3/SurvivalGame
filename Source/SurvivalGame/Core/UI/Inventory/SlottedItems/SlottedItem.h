@@ -26,11 +26,18 @@ public:
 	void SetIsStackable(bool bStackable) {bIsStackable = bStackable;}
 	UImage* GetImage_Icon() const {return Image_Icon;}
 	void SetGridIndex(int32 Index) {GridIndex = Index;}
+	
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 GetGridIndex() const {return GridIndex;}
+	
 	void SetGridDimensions(FIntPoint Dimensions) {GridDimensions = Dimensions;}
 	FIntPoint GetGridDimensions() const {return GridDimensions;}
 	void SetInventoryItem(UInventoryItem* Item);
+	
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	UInventoryItem* GetInventoryItem() const {return InventoryItem.Get();}
+	
+	
 	void SetImageBrush(const FSlateBrush& Brush) const;
 	void UpdateStackCount(int32 StackCount);
 	

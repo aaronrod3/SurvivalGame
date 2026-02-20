@@ -612,8 +612,8 @@ bool UInventoryGrid::CheckSlotConstraints(const UGridSlots* GridSlot,
 	// is this the same type of item were trying to add
 	if (!DoesItemTypeMatch(SubItem, ItemType)) return false;
 	
-	// if stackable, is it at max stack capacity already
-	if (GridSlot->GetStackCount() >= MaxStackSize) return false;
+	const int32 ExistingStackCount = GetStackAmount(SubGridSlot);
+	if (ExistingStackCount >= MaxStackSize) return false;
 	
 	
 	return true;
@@ -926,28 +926,6 @@ void UInventoryGrid::CreateItemPopUp(const int32 GridIndex)
 		ItemPopUp->CollapseConsumeButton();
 	}
 	
-	// Show/hide assign button based on item type
-	if (const UInventoryItem* Item = GridSlots[GridIndex]->GetInventoryItem().Get())
-	{
-		const FItemManifest& Manifest = Item->GetItemManifest();
-		const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
-		
-		// Show assign button only for items that can be quick slotted
-		if (Rules.bCanGoInQuickSlot || IsEquippableItem(Rules.EquipmentSlot))
-		{
-			ItemPopUp->ShowAssignButton();
-		}
-		else
-		{
-			ItemPopUp->CollapseAssignButton();
-		}
-	}
-	else
-	{
-		ItemPopUp->CollapseAssignButton();
-	}
-	
-	ItemPopUp->OnAssign.BindUFunction(this, FName("OnPopUpMenuAssign"));
 
 }
 
@@ -971,9 +949,47 @@ void UInventoryGrid::OnGridSlotClicked(int32 GridIndex, const FPointerEvent& Mou
 
 void UInventoryGrid::PutDownOnIndex(const int32 Index)
 {
-	AddItemAtIndex(HoverItem->GetInventoryItem(), Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
-	UpdateGridSlot(HoverItem->GetInventoryItem(), Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
+	if (!IsValid(HoverItem) || !IsValid(HoverItem->GetInventoryItem())) return;
+	
+	UInventoryItem* ItemToPlace = HoverItem->GetInventoryItem();
+	
+	// Enforce restriction system
+	if (!MatchesPlacementRules(ItemToPlace))
+	{
+		// Cancel: return item to where it came from
+		const int32 PreviousIndex = HoverItem->GetPreviousGridIndex();
+		if (GridSlots.IsValidIndex(PreviousIndex))
+		{
+			AddItemAtIndex(ItemToPlace, PreviousIndex, HoverItem->IsStackable(), HoverItem->GetStackCount());
+			UpdateGridSlot(ItemToPlace, PreviousIndex, HoverItem->IsStackable(), HoverItem->GetStackCount());
+		}
+		ClearHoverItem();
+		return;
+	}
+	
+	// Enforce collision/fit
+	const FGridFragment* GridFragment = GetFragment<FGridFragment>(ItemToPlace, FragmentTags::GridFragment);
+	if (!GridFragment) return;
+	
+	const FIntPoint DropCoordinate = UWidgetUtilities::GetPositionFromIndex(Index, Columns);
+	const FSpaceQueryResult QueryResult = CheckHoverPosition(DropCoordinate,GridFragment->GetGridSize());
+	if (!QueryResult.bHasSpace)
+	{
+		// Same return to origin behavior
+		const int32 PreviousIndex = HoverItem->GetPreviousGridIndex();
+		if (!GridSlots.IsValidIndex(PreviousIndex))
+		{
+			AddItemAtIndex(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
+			UpdateGridSlot(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
+		}
+		ClearHoverItem();
+		return;
+	}
+	
+	AddItemAtIndex(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
+	UpdateGridSlot(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
 	ClearHoverItem();
+	
 }
 
 void UInventoryGrid::ClearHoverItem()

@@ -230,6 +230,7 @@ private:
 	/**
 	 * Check if item is an equippable type
 	 */
+	//UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	bool IsEquippableItem(EItem_Category Category) const;
 
 	/**

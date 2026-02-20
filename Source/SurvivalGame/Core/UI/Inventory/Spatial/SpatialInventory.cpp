@@ -2,11 +2,12 @@
 
 
 #include "SpatialInventory.h"
-
 #include "SurvivalGame/Character/Inventory/InventoryComponent.h"
 #include "SurvivalGame/Core/Data/Items/Manifest/ItemManifest.h"
 #include "SurvivalGame/Core/Data/Items/ItemComponent.h"
-#include "SurvivalGame/Core/UI/Utilities/InventoryStatics.h"
+#include "SurvivalGame/Core/UI/Inventory/Types/QuickSlotTypes.h"
+#include "SurvivalGame/Core/Data/Items/InventoryItem.h"
+#include "SurvivalGame/Core/UI/Inventory/Spatial/InventoryGrid.h"
 
 
 void USpatialInventory::NativeOnInitialized()
@@ -28,8 +29,12 @@ void USpatialInventory::NativeOnInitialized()
 	Grid_Belt_Slots->SetOwningCanvas(CanvasPanel);
 	Grid_Pocket_Slots->SetOwningCanvas(CanvasPanel);
 	
-	
-	
+	Grid_Rig_Slots->SetSpatialInventory(this);
+	Grid_Belt_Slots->SetSpatialInventory(this);
+	Grid_Weapon_Primary->SetSpatialInventory(this);
+	Grid_Weapon_Holster->SetSpatialInventory(this);
+	Grid_Weapon_Secondary->SetSpatialInventory(this);
+	Grid_Tool->SetSpatialInventory(this);
 }
 
 FReply USpatialInventory::NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -101,7 +106,23 @@ TArray<UInventoryGrid*> USpatialInventory::GetAllStorageGrids() const
 	};
 }
 
-
+bool USpatialInventory::TryAssignQuickSlotFromGrid(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 SourceIndex, EQuickSlotType TargetSlot)
+{
+	if (!IsValid(Item) || !IsValid(SourceGrid)) return false;
+	if (TargetSlot == EQuickSlotType::None) return false;
+	
+	const FItemManifest& Manifest = Item->GetItemManifest();
+	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
+	
+	// Validate: either explicitly allowed OR equippable
+	if (!Rules.bCanGoInQuickSlot && !SourceGrid->IsEquippableItem(Rules.EquipmentSlot))
+	{
+		return false;
+	}
+	
+	AssignItemToQuickSlot(Item, SourceGrid, SourceIndex, TargetSlot);
+	return true;
+}
 
 bool USpatialInventory::AssignItemToQuickSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 StorageIndex, EQuickSlotType SlotType)
 {

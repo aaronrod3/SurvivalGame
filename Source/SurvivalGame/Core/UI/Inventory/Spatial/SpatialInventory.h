@@ -4,12 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "InventoryGrid.h"
-#include "Components/WidgetSwitcher.h"
 #include "SurvivalGame/Core/UI/Inventory/InventoryBase.h"
 #include "SurvivalGame/Core/UI/Inventory/Types/QuickSlotTypes.h"
 #include "SpatialInventory.generated.h"
 
 class UCanvasPanel;
+
+// Delegate to broadcast when quick slot is updated (for UI updates)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnQuickSlotUpdated, EQuickSlotType, SlotType, UInventoryItem*, Item);
 
 /**
  * 
@@ -33,10 +35,12 @@ public:
 	* Quick Slot Management
 	*/
 	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	bool TryAssignQuickSlotFromGrid(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 SourceIndex, EQuickSlotType TargetSlot);
+	
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
 	bool AssignItemToQuickSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 StorageIndex, EQuickSlotType SlotType);
 
-	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
-	void ClearQuickSlot(EQuickSlotType SlotType);
+	
 
 	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
 	UInventoryItem* GetItemFromQuickSlot(EQuickSlotType SlotType) const;
@@ -61,6 +65,17 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
 	EQuickSlotType GetPendingAssignmentSlot() const { return PendingQuickSlotType; }
+	
+	
+	// Called by quickslot bar widget OnDrop (consumable slots 5-0)
+	UFUNCTION(BlueprintCallable, Category = "Inventory | QuickSlots")
+	bool TryAssignConsumableQuickSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 SourceIndex, EQuickSlotType TargetSlot);
+	
+	// Read a slot reference
+	const FQuickSlotReference& GetQuickSlotReference(EQuickSlotType SlotType) const;
+	
+
+	
 	
 private:
 	
@@ -96,6 +111,14 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryGrid> Grid_Pants;
 	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UInventoryGrid> Grid_Weapon_Primary;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UInventoryGrid> Grid_Weapon_Holster;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UInventoryGrid> Grid_Weapon_Secondary;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UInventoryGrid> Grid_Tool;
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryGrid> Grid_Rig;
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryGrid> Grid_Rig_Slots;
@@ -115,33 +138,47 @@ private:
 	// QUICK SLOT PROPERTIES
 	// =============================
 
-	/**
-	 * Map of quick slot references
-	 * Key: EQuickSlotType, Value: FQuickSlotReference
-	 */
+	// Map of quick slot references
 	UPROPERTY()
 	TMap<EQuickSlotType, FQuickSlotReference> QuickSlotReferences;
+	
+	// Auto Populate bindings
+	void BindWeaponGridCallbacks();
+	
+	// Fires when item lands in a weapon/tool grid (auto populate 1-4)
+	UFUNCTION()
+	void OnWeaponPrimaryItemAdded(UInventoryItem* Item);
+	UFUNCTION()
+	void OnWeaponHolsterItemAdded(UInventoryItem* Item);
+	UFUNCTION()
+	void OnWeaponSecondaryItemAdded(UInventoryItem* Item);
+	UFUNCTION()
+	void OnToolItemAdded(UInventoryItem* Item);
 
-	/**
-	 * Is the player in quick slot assignment mode?
-	 */
+	// Shared auto-populate logic
+	void AutoAssignWeaponSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, EQuickSlotType TargetSlot);
+	
+	// Consumable validation
+	bool IsConsumableQuickSlottable(const UInventoryItem* Item, const UInventoryGrid* SourceGrid) const;
+	bool IsConsumableSourceGrid(const UInventoryGrid* SourceGrid) const;
+	bool IsConsumableCategory(EItem_Category Category) const;
+
+	// Core assign/clear
+	void AssignQuickSlot(const FQuickSlotReference& Reference);
+	void ClearQuickSlot(EQuickSlotType SlotType);
+	
+	// Is the player in quick slot assignment mode?
 	UPROPERTY()
 	bool bInQuickSlotAssignmentMode = false;
-
-	/**
-	 * The quick slot waiting for item assignment
-	 */
+	
+	// The quick slot waiting for item assignment
 	UPROPERTY()
-	EQuickSlotType PendingQuickSlotType = EQuickSlotType::Slot_1;
-
-	/**
-	 * Delegate to broadcast when quick slot is updated (for UI updates)
-	 */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnQuickSlotUpdated, EQuickSlotType, SlotType, UInventoryItem*, Item);
-
+	EQuickSlotType PendingQuickSlotType = EQuickSlotType::Slot_5;
+	
 	UPROPERTY(BlueprintAssignable, Category = "QuickSlot")
 	FOnQuickSlotUpdated OnQuickSlotUpdated;
-	
+	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
+	void ClearQuickSlot(EQuickSlotType SlotType);
 	
 	
 	// add stash later
