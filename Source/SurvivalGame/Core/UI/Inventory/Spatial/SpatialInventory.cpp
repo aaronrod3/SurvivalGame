@@ -35,6 +35,9 @@ void USpatialInventory::NativeOnInitialized()
 	Grid_Weapon_Holster->SetSpatialInventory(this);
 	Grid_Weapon_Secondary->SetSpatialInventory(this);
 	Grid_Tool->SetSpatialInventory(this);
+	
+	// Bind weapon grid auto-populate callbacks
+	BindWeaponGridCallbacks();
 }
 
 FReply USpatialInventory::NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -106,57 +109,162 @@ TArray<UInventoryGrid*> USpatialInventory::GetAllStorageGrids() const
 	};
 }
 
-bool USpatialInventory::TryAssignQuickSlotFromGrid(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 SourceIndex, EQuickSlotType TargetSlot)
+
+
+/*
+ * QUICK SLOT - Auto Populate (1-4)
+ */
+
+void USpatialInventory::BindWeaponGridCallbacks()
+{
+	if (IsValid(Grid_Weapon_Primary) && IsValid(Grid_Weapon_Primary->GetInventoryComponent()))
+	{
+		Grid_Weapon_Primary->GetInventoryComponent()->OnItemAdded.AddDynamic(this, &ThisClass::OnWeaponPrimaryItemAdded);
+	}
+	
+	if (IsValid(Grid_Weapon_Holster) && IsValid(Grid_Weapon_Holster->GetInventoryComponent()))
+	{
+		Grid_Weapon_Holster->GetInventoryComponent()->OnItemAdded.AddDynamic(this, &ThisClass::OnWeaponHolsterItemAdded);
+	}
+	
+	if (IsValid(Grid_Weapon_Secondary) && IsValid(Grid_Weapon_Secondary->GetInventoryComponent()))
+	{
+		Grid_Weapon_Secondary->GetInventoryComponent()->OnItemAdded.AddDynamic(this, &ThisClass::OnWeaponSecondaryItemAdded);
+	}
+	
+	if (IsValid(Grid_Tool) && IsValid(Grid_Tool->GetInventoryComponent()))
+	{
+		Grid_Tool->GetInventoryComponent()->OnItemAdded.AddDynamic(this, &ThisClass::OnToolItemAdded);
+	}
+}
+
+void USpatialInventory::OnWeaponPrimaryItemAdded(UInventoryItem* Item)
+{
+	AutoAssignWeaponSlot(Item, Grid_Weapon_Primary, EQuickSlotType::Weapon_Primary);
+}
+
+void USpatialInventory::OnWeaponHolsterItemAdded(UInventoryItem* Item)
+{
+	AutoAssignWeaponSlot(Item, Grid_Weapon_Holster, EQuickSlotType::Weapon_Holster);
+}
+
+void USpatialInventory::OnWeaponSecondaryItemAdded(UInventoryItem* Item)
+{
+	AutoAssignWeaponSlot(Item, Grid_Weapon_Secondary, EQuickSlotType::Weapon_Secondary);
+}
+
+void USpatialInventory::OnToolItemAdded(UInventoryItem* Item)
+{
+	AutoAssignWeaponSlot(Item, Grid_Tool, EQuickSlotType::Tool);
+}
+
+void USpatialInventory::AutoAssignWeaponSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, EQuickSlotType TargetSlot)
+{
+	if (!IsValid(Item) || !IsValid(SourceGrid)) return;
+	
+	const int32 SourceIndex = SourceGrid->FindUpperLeftIndexForItem(Item);
+	
+	if (SourceIndex == INDEX_NONE) return;
+	
+	FQuickSlotReference Ref;
+	Ref.SlotType = TargetSlot;
+	Ref.ItemReference = Item;
+	Ref.SourceGrid = SourceGrid;
+	Ref.StorageGridIndex = SourceIndex;
+	Ref.bIsOccupied = true;
+	
+	AssignQuickSlotInternal(Ref);
+}
+
+/*
+ * QUICK SLOT - Consumables (5-0)
+ */
+
+bool USpatialInventory::TryAssignConsumableQuickSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 SourceIndex, EQuickSlotType TargetSlot)
 {
 	if (!IsValid(Item) || !IsValid(SourceGrid)) return false;
+	
 	if (TargetSlot == EQuickSlotType::None) return false;
+	
+	// Slots 1-4 are weapon only, not assignable via drag
+	if (TargetSlot == EQuickSlotType::Weapon_Primary || 
+		TargetSlot == EQuickSlotType::Weapon_Holster || 
+		TargetSlot == EQuickSlotType::Weapon_Secondary || 
+		TargetSlot == EQuickSlotType::Tool)
+	{
+		return false;
+	}
+	
+	if (!IsConsumableQuickSlottable(Item, SourceGrid)) return false;
+	
+	FQuickSlotReference Ref;
+	Ref.SlotType = TargetSlot;
+	Ref.ItemReference = Item;
+	Ref.SourceGrid = SourceGrid;
+	Ref.StorageGridIndex = SourceIndex;
+	Ref.bIsOccupied = true;
+	
+	AssignQuickSlotInternal(&Ref);
+	return true;
+}
+
+bool USpatialInventory::IsConsumableQuickSlottable(const UInventoryItem* Item, const UInventoryGrid* SourceGrid) const
+{
+	if (!IsValid(Item) || !IsValid(SourceGrid)) return false;
+	
+	// Must come from rig or belt only
+	if (!IsConsumableSourceGrid(SourceGrid)) return false;
 	
 	const FItemManifest& Manifest = Item->GetItemManifest();
 	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
 	
-	// Validate: either explicitly allowed OR equippable
-	if (!Rules.bCanGoInQuickSlot && !SourceGrid->IsEquippableItem(Rules.EquipmentSlot))
+	return IsConsumableCategory(Rules.EquipmentSlot);
+}
+
+bool USpatialInventory::IsConsumableSourceGrid(const UInventoryGrid* SourceGrid) const
+{
+	return SourceGrid == Grid_Rig_Slots || SourceGrid == Grid_Belt_Slots;
+}
+
+bool USpatialInventory::IsConsumableCategory(EItem_Category Category) const
+{
+	switch (Category)
 	{
+	case EItem_Category::Usable_Medical:
+	case EItem_Category::Usable_Food:
+		return true;
+	default: 
 		return false;
 	}
-	
-	AssignItemToQuickSlot(Item, SourceGrid, SourceIndex, TargetSlot);
-	return true;
 }
+
+
+/*
+ * Quick slot - Core Assign / Clear
+ */
+
+void USpatialInventory::AssignQuickSlotInternal(const FQuickSlotReference& Reference)
+{
+	QuickSlotReferences.Add(Reference.SlotType, Reference);
+	OnQuickSlotUpdated.Broadcast(Reference.SlotType, Reference.ItemReference.Get());
+}
+
 
 bool USpatialInventory::AssignItemToQuickSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 StorageIndex, EQuickSlotType SlotType)
 {
-	if (!Item || !SourceGrid || StorageIndex == INDEX_NONE)
-	{
-		return false;
-	}
+	if (!Item || !SourceGrid || StorageIndex == INDEX_NONE) return false;
 	
-	// Check if item can be assigned to this slot
-	if (!CanAssignToQuickSlot(Item, SlotType))
-	{
-		return false;
-	}
+	if (!CanAssignToQuickSlot(Item, SlotType)) return false;
 	
-	// Get or create slot reference
-	FQuickSlotReference& SlotRef = QuickSlotReferences.FindOrAdd(SlotType);
+	FQuickSlotReference Ref;
+	Ref.SlotType = SlotType;
+	Ref.ItemReference = Item;
+	Ref.SourceGrid = SourceGrid;
+	Ref.StorageGridIndex = StorageIndex;
+	Ref.bIsOccupied = true;
 	
-	// If slot is occupied with a different item, clear it first
-	if (SlotRef.IsValid() && SlotRef.ItemReference != Item)
-	{
-		SlotRef.Clear();
-	}
+	AssignQuickSlotInternal(Ref);
 	
-	// Assign new item
-	SlotRef.ItemReference = Item;
-	SlotRef.SourceGrid = SourceGrid;
-	SlotRef.StorageGridIndex = StorageIndex;
-	SlotRef.bIsOccupied = true;
-	SlotRef.SlotType = SlotType;
-	
-	// Broadcast update
-	OnQuickSlotUpdated.Broadcast(SlotType, Item);
-	
-	// Exit assignment mode if active
 	if (bInQuickSlotAssignmentMode)
 	{
 		CancelQuickSlotAssignment();
@@ -164,6 +272,7 @@ bool USpatialInventory::AssignItemToQuickSlot(UInventoryItem* Item, UInventoryGr
 	
 	return true;
 }
+
 
 void USpatialInventory::ClearQuickSlot(EQuickSlotType SlotType)
 {
@@ -174,147 +283,134 @@ void USpatialInventory::ClearQuickSlot(EQuickSlotType SlotType)
 	}
 }
 
+const FQuickSlotReference* USpatialInventory::GetQuickSlotReference(EQuickSlotType SlotType) const
+{
+	return QuickSlotReferences.Find(SlotType);
+}
+
 UInventoryItem* USpatialInventory::GetItemFromQuickSlot(EQuickSlotType SlotType) const
 {
-	if (const FQuickSlotReference* SlotRef = QuickSlotReferences.Find(SlotType))
+	if (const FQuickSlotReference* SlotReference = QuickSlotReferences.Find(SlotType))
 	{
-		if (SlotRef->IsValid())
+		if (SlotReference->IsValid())
 		{
-			return SlotRef->ItemReference.Get();
+			return SlotReference->ItemReference.Get();
 		}
 	}
 	return nullptr;
 }
 
-void USpatialInventory::UpdateQuickSlotReference(UInventoryGrid* Grid, int32 OldIndex, int32 NewIndex)
+
+
+/*
+ * Quick Slot Reference Sync (item move/removed from grid)
+ */
+
+
+void USpatialInventory::OnItemRemovedFromGrid(UInventoryGrid* SourceGrid, int32 SourceIndex)
 {
-	// Update all quick slots that reference this grid and index
+	UpdateQuickSlotReference(SourceGrid, SourceIndex, INDEX_NONE);
+}
+
+void USpatialInventory::UpdateQuickSlotReference(UInventoryGrid* SourceGrid, int32 OldIndex, int32 NewIndex)
+{
 	for (TPair<EQuickSlotType, FQuickSlotReference>& Pair : QuickSlotReferences)
 	{
 		FQuickSlotReference& SlotRef = Pair.Value;
 		
-		if (SlotRef.SourceGrid == Grid && SlotRef.StorageGridIndex == OldIndex)
+		if (SlotRef.SourceGrid == SourceGrid && SlotRef.StorageGridIndex == OldIndex)
 		{
 			if (NewIndex == INDEX_NONE)
 			{
-				// Item was removed - try to find replacement
-				if (UInventoryItem* Replacement = FindReplacementItem(SlotRef.ItemReference.Get(), SlotRef.SourceGrid, SlotRef.StorageGridIndex))
+				UInventoryItem* Replacement = FindReplacementItem(
+					SlotRef.ItemReference.Get(),
+					SlotRef.SourceGrid,
+					SlotRef.StorageGridIndex);
+				
+				if (Replacement)
 				{
 					SlotRef.ItemReference = Replacement;
 					OnQuickSlotUpdated.Broadcast(Pair.Key, Replacement);
 				}
 				else
 				{
-					// No replacement found, clear slot
 					SlotRef.Clear();
 					OnQuickSlotUpdated.Broadcast(Pair.Key, nullptr);
 				}
 			}
 			else
 			{
-				// Item moved to new index
 				SlotRef.StorageGridIndex = NewIndex;
 				OnQuickSlotUpdated.Broadcast(Pair.Key, SlotRef.ItemReference.Get());
 			}
+			return;
 		}
 	}
 }
 
-void USpatialInventory::OnItemRemovedFromGrid(UInventoryGrid* Grid, int32 GridIndex)
-{
-	UpdateQuickSlotReference(Grid, GridIndex, INDEX_NONE);
-}
+
+/*
+ * Quick Slot - Assignment mode, no longer needed once drag/drop is fully implemented
+ */
+
 
 void USpatialInventory::BeginQuickSlotAssignment(EQuickSlotType TargetSlot)
 {
 	bInQuickSlotAssignmentMode = true;
 	PendingQuickSlotType = TargetSlot;
-	
 	// TODO: Update cursor or UI to show assignment mode
 }
 
 void USpatialInventory::CancelQuickSlotAssignment()
 {
 	bInQuickSlotAssignmentMode = false;
-	PendingQuickSlotType = EQuickSlotType::Slot_1;
-	
-	// TODO: Reset cursor or UI
+	PendingQuickSlotType = EQuickSlotType::None; 
 }
+
+
+/*
+ * Quick Slot - Validation
+ */
 
 bool USpatialInventory::CanAssignToQuickSlot(const UInventoryItem* Item, EQuickSlotType SlotType) const
 {
-	if (!Item)
-	{
-		return false;
-	}
+	if (!Item) return false;
 	
 	const FItemManifest& Manifest = Item->GetItemManifest();
 	const FItemPlacementRules& Rules = Manifest.GetPlacementRules();
 	const EItem_Category Category = Rules.EquipmentSlot;
 	
-	// Weapon/Equipment slots can only accept their specific types
 	switch (SlotType)
 	{
-		case EQuickSlotType::Weapon_Primary:
-			return Category == EItem_Category::Weapon_Primary;
-			
-		case EQuickSlotType::Weapon_Holster:
-			return Category == EItem_Category::Weapon_Holster;
-			
-		case EQuickSlotType::Weapon_Secondary:
-			// Secondary slot accepts both Primary and Secondary weapons
-			return Category == EItem_Category::Weapon_Primary || Category == EItem_Category::Weapon_Secondary;
-			
-		case EQuickSlotType::Tool:
-			return Category == EItem_Category::Tool;
-			
-		// Numbered slots accept only usable items with quick slot permission
-		default:
-			return Rules.bCanGoInQuickSlot;
+	case EQuickSlotType::Weapon_Primary:
+		return Category == EItem_Category::Weapon_Primary;
+	case EQuickSlotType::Weapon_Holster:
+		return Category == EItem_Category::Weapon_Holster;
+	case EQuickSlotType::Weapon_Secondary:
+		return Category == EItem_Category::Weapon_Primary
+				|| Category == EItem_Category::Weapon_Secondary;
+	case EQuickSlotType::Tool:
+		return Category == EItem_Category::Tool;
+	default:
+		// Slots 5-0 must be consumable
+		return IsConsumableCategory(Category);
 	}
 }
+
+
+/*
+ * Quick Slot - replacement search
+ */
 
 UInventoryItem* USpatialInventory::FindReplacementItem(const UInventoryItem* ConsumedItem, TWeakObjectPtr<UInventoryGrid>& OutGrid, int32& OutIndex)
 {
-	if (!ConsumedItem)
-	{
-		return nullptr;
-	}
+	if (!ConsumedItem) return nullptr;
 	
-	// Get the item type we're looking for
-	const FGameplayTag& ItemType = ConsumedItem->GetItemManifest().GetItemType();
-	
-	// Search through all grids for another item of the same type
-	// TODO: Implement based on your inventory component structure
-	// You'll need to iterate through your grids and find matching items
-	
-	// Placeholder implementation:
-	// for (UInventoryGrid* Grid : AllGrids)
-	// {
-	//     for (int32 Index = 0; Index < Grid->GetSlotCount(); ++Index)
-	//     {
-	//         if (UInventoryItem* Item = Grid->GetItemAtIndex(Index))
-	//         {
-	//             if (Item->GetItemManifest().GetItemType() == ItemType)
-	//             {
-	//                 OutGrid = Grid;
-	//                 OutIndex = Index;
-	//                 return Item;
-	//             }
-	//         }
-	//     }
-	// }
+	// TODO: iterate grids and find matching item type
+	// const FGameplayTag& ItemType = ConsumedItem->GetItemManifest().GetItemType();
 	
 	return nullptr;
 }
-
-
-
-
-
-
-
-
 
 
 

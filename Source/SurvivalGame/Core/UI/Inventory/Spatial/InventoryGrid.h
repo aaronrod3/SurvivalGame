@@ -30,6 +30,7 @@ public:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float DeltaTime) override;
 	
+	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent.Get(); }
 	
 	EItem_Category GetItemCategory() const { return Item_Category; };
 	FSlotAvailabilityResult HasRoomForItem(const UItemComponent* ItemComponent);

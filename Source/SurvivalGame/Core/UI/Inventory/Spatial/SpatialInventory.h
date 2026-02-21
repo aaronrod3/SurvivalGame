@@ -177,9 +177,6 @@ private:
 	
 	UPROPERTY(BlueprintAssignable, Category = "QuickSlot")
 	FOnQuickSlotUpdated OnQuickSlotUpdated;
-	UFUNCTION(BlueprintCallable, Category = "QuickSlot")
-	void ClearQuickSlot(EQuickSlotType SlotType);
-	
 	
 	// add stash later
 	
