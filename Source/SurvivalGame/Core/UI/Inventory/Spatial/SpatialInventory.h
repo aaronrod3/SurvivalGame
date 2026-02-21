@@ -72,7 +72,7 @@ public:
 	bool TryAssignConsumableQuickSlot(UInventoryItem* Item, UInventoryGrid* SourceGrid, int32 SourceIndex, EQuickSlotType TargetSlot);
 	
 	// Read a slot reference
-	const FQuickSlotReference& GetQuickSlotReference(EQuickSlotType SlotType) const;
+	const FQuickSlotReference* GetQuickSlotReference(EQuickSlotType SlotType) const;
 	
 
 	

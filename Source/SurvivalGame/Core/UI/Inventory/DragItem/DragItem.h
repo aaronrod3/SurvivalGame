@@ -1,14 +1,14 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/DragItem.h"
+#include "Blueprint/DragDropOperation.h"
 #include "DragItem.generated.h"
 
 class UInventoryItem;
 class UInventoryGrid;
 
 UCLASS()
-class SURVIVALGAME_API UDragItem : public UDragItem
+class SURVIVALGAME_API UDragItem : public UDragDropOperation
 {
     GENERATED_BODY()
 

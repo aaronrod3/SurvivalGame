@@ -635,6 +635,25 @@ bool UInventoryGrid::IsUpperLeftSlot(const UGridSlots* GridSlot, const UGridSlot
 	return SubGridSlot->GetUpperLeftIndex() == GridSlot->GetIndex();
 }
 
+int32 UInventoryGrid::FindUpperLeftIndexForItem(const UInventoryItem* Item) const
+{
+	if (!IsValid(Item)) return INDEX_NONE;
+
+	for (int32 i = 0; i < GridSlots.Num(); i++)
+	{
+		const UGridSlots* Slot = GridSlots[i];
+		if (!IsValid(Slot)) continue;
+		if (Slot->GetInventoryItem().Get() != Item) continue;
+
+		// A slot is the upper-left anchor when its own index equals its stored upper-left index
+		if (Slot->GetUpperLeftIndex() == Slot->GetIndex())
+		{
+			return i;
+		}
+	}
+	return INDEX_NONE;
+}
+
 bool UInventoryGrid::DoesItemTypeMatch(const UInventoryItem* SubItem, const FGameplayTag& ItemType) const
 {
 	return SubItem->GetItemManifest().GetItemType().MatchesTagExact(ItemType);
@@ -1226,11 +1245,6 @@ void UInventoryGrid::OnPopUpMenuAssign(int32 Index)
 	{
 		if (UInventoryItem* Item = GridSlot->GetInventoryItem().Get())
 		{
-			// Show quick slot selection UI
-			// For now, just assign to Slot_1 as default
-			// TODO: Create a slot selection widget
-			SpatialInventory->BeginQuickSlotAssignment(EQuickSlotType::Slot_1);
-		
 			// Close popup
 			if (ItemPopUp)
 			{

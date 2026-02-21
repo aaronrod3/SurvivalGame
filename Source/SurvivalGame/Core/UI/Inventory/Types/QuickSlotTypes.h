@@ -44,25 +44,28 @@ struct FQuickSlotReference
 	EQuickSlotType SlotType = EQuickSlotType::None;
 
 	UPROPERTY()
-	TWeakObjectPtr<UInventoryItem> Item = nullptr;
+	TWeakObjectPtr<UInventoryItem> ItemReference = nullptr;
 
 	UPROPERTY()
 	TWeakObjectPtr<UInventoryGrid> SourceGrid = nullptr;
 
 	UPROPERTY()
 	int32 SourceIndex = INDEX_NONE;
+	
+	UPROPERTY()
+	bool bIsOccupied = false;
 
 	bool IsValid() const
 	{
 		return SlotType != EQuickSlotType::None
-			&& Item.IsValid()
+			&& ItemReference.IsValid()
 			&& SourceGrid.IsValid()
 			&& SourceIndex != INDEX_NONE;
 	}
 
 	void Clear()
 	{
-		Item = nullptr;
+		ItemReference = nullptr;
 		SourceGrid = nullptr;
 		SourceIndex = INDEX_NONE;
 	}

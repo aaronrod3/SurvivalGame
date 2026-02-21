@@ -173,7 +173,7 @@ void USpatialInventory::AutoAssignWeaponSlot(UInventoryItem* Item, UInventoryGri
 	Ref.StorageGridIndex = SourceIndex;
 	Ref.bIsOccupied = true;
 	
-	AssignQuickSlotInternal(Ref);
+	AssignQuickSlot(Ref);
 }
 
 /*
@@ -204,7 +204,7 @@ bool USpatialInventory::TryAssignConsumableQuickSlot(UInventoryItem* Item, UInve
 	Ref.StorageGridIndex = SourceIndex;
 	Ref.bIsOccupied = true;
 	
-	AssignQuickSlotInternal(&Ref);
+	AssignQuickSlot(&Ref);
 	return true;
 }
 
@@ -243,7 +243,7 @@ bool USpatialInventory::IsConsumableCategory(EItem_Category Category) const
  * Quick slot - Core Assign / Clear
  */
 
-void USpatialInventory::AssignQuickSlotInternal(const FQuickSlotReference& Reference)
+void USpatialInventory::AssignQuickSlot(const FQuickSlotReference& Reference)
 {
 	QuickSlotReferences.Add(Reference.SlotType, Reference);
 	OnQuickSlotUpdated.Broadcast(Reference.SlotType, Reference.ItemReference.Get());
@@ -263,7 +263,7 @@ bool USpatialInventory::AssignItemToQuickSlot(UInventoryItem* Item, UInventoryGr
 	Ref.StorageGridIndex = StorageIndex;
 	Ref.bIsOccupied = true;
 	
-	AssignQuickSlotInternal(Ref);
+	AssignQuickSlot(Ref);
 	
 	if (bInQuickSlotAssignmentMode)
 	{
@@ -314,37 +314,46 @@ void USpatialInventory::OnItemRemovedFromGrid(UInventoryGrid* SourceGrid, int32 
 
 void USpatialInventory::UpdateQuickSlotReference(UInventoryGrid* SourceGrid, int32 OldIndex, int32 NewIndex)
 {
+	if (!IsValid(SourceGrid)) return;
+	
 	for (TPair<EQuickSlotType, FQuickSlotReference>& Pair : QuickSlotReferences)
 	{
 		FQuickSlotReference& SlotRef = Pair.Value;
 		
-		if (SlotRef.SourceGrid == SourceGrid && SlotRef.StorageGridIndex == OldIndex)
+		if (SlotRef.SourceGrid != SourceGrid) continue;
+		if (SlotRef.StorageGridIndex != OldIndex) continue;
+		
+		// Item was removed by grid: try to find a replacement of the same type elsewhere
+		if (NewIndex != INDEX_NONE)
 		{
-			if (NewIndex == INDEX_NONE)
+			TWeakObjectPtr<UInventoryGrid> ReplacementGrid = nullptr;
+			int32 ReplacementIndex = INDEX_NONE;
+			
+			UInventoryItem* ReplacementItem = FindReplacementItem(SlotRef.ItemReference.Get(), ReplacementGrid, ReplacementIndex);
+			
+			if (IsValid(ReplacementItem) && ReplacementGrid.IsValid() && ReplacementIndex != INDEX_NONE)
 			{
-				UInventoryItem* Replacement = FindReplacementItem(
-					SlotRef.ItemReference.Get(),
-					SlotRef.SourceGrid,
-					SlotRef.StorageGridIndex);
+				SlotRef.ItemReference = ReplacementItem;
+				SlotRef.SourceGrid = ReplacementGrid.Get();
+				SlotRef.StorageGridIndex = ReplacementIndex;
+				SlotRef.bIsOccupied = true;
 				
-				if (Replacement)
-				{
-					SlotRef.ItemReference = Replacement;
-					OnQuickSlotUpdated.Broadcast(Pair.Key, Replacement);
-				}
-				else
-				{
-					SlotRef.Clear();
-					OnQuickSlotUpdated.Broadcast(Pair.Key, nullptr);
-				}
+				OnQuickSlotUpdated.Broadcast(Pair.Key, ReplacementItem);
 			}
 			else
 			{
-				SlotRef.StorageGridIndex = NewIndex;
-				OnQuickSlotUpdated.Broadcast(Pair.Key, SlotRef.ItemReference.Get());
+				SlotRef.Clear();
+				OnQuickSlotUpdated.Broadcast(Pair.Key, nullptr);
 			}
 			return;
 		}
+		
+		// item moved with same grid: update index
+		SlotRef.StorageGridIndex = NewIndex;
+		SlotRef.bIsOccupied = true;
+		
+		OnQuickSlotUpdated.Broadcast(Pair.Key, SlotRef.ItemReference.Get());
+		return;
 	}
 }
 

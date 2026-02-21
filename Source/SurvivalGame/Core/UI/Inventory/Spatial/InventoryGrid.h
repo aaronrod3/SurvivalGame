@@ -73,6 +73,9 @@ public:
 	 * Lower number = higher priority
 	 */
 	int32 GetRoutingPriority(const UInventoryItem* Item) const;
+	
+	// Find Upper Left Index
+	int32 FindUpperLeftIndexForItem(const UInventoryItem* Item) const;
 
 private:
 	
