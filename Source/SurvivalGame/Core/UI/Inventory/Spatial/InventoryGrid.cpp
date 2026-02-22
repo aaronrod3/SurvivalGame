@@ -641,12 +641,12 @@ int32 UInventoryGrid::FindUpperLeftIndexForItem(const UInventoryItem* Item) cons
 
 	for (int32 i = 0; i < GridSlots.Num(); i++)
 	{
-		const UGridSlots* Slot = GridSlots[i];
+		const UGridSlots* GridSlot = GridSlots[i];
 		if (!IsValid(Slot)) continue;
-		if (Slot->GetInventoryItem().Get() != Item) continue;
+		if (GridSlot->GetInventoryItem().Get() != Item) continue;
 
 		// A slot is the upper-left anchor when its own index equals its stored upper-left index
-		if (Slot->GetUpperLeftIndex() == Slot->GetIndex())
+		if (GridSlot->GetUpperLeftIndex() == GridSlot->GetIndex())
 		{
 			return i;
 		}

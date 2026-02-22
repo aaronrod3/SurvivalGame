@@ -7,6 +7,7 @@
 #include "SurvivalGame/Core/Data/Items/InventoryItem.h"
 #include "SlottedItem.generated.h"
 
+class UInventoryGrid;
 class UImage;
 class UInventoryItem;
 class UTextBlock;
@@ -21,6 +22,7 @@ class SURVIVALGAME_API USlottedItem : public UUserWidget
 
 public:
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
 	
 	bool GetIsStackable() const {return bIsStackable;}
 	void SetIsStackable(bool bStackable) {bIsStackable = bStackable;}
@@ -41,9 +43,16 @@ public:
 	void SetImageBrush(const FSlateBrush& Brush) const;
 	void UpdateStackCount(int32 StackCount);
 	
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void SetOwningGrid(UInventoryGrid* InGrid) { OwningGrid = InGrid; }
+	
+	
 	FSlottedItemClicked OnSlottedItemClicked;
 	
 private:
+	
+	UPROPERTY()
+	TWeakObjectPtr<UInventoryGrid> OwningGrid = nullptr;
 	
 	//UPROPERTY()
 	//FSlateBrush ImageBrush;

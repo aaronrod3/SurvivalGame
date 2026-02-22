@@ -204,7 +204,7 @@ bool USpatialInventory::TryAssignConsumableQuickSlot(UInventoryItem* Item, UInve
 	Ref.StorageGridIndex = SourceIndex;
 	Ref.bIsOccupied = true;
 	
-	AssignQuickSlot(&Ref);
+	AssignQuickSlot(Ref);
 	return true;
 }
 
