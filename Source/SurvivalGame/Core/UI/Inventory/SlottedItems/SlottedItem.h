@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "SurvivalGame/Core/Data/Items/InventoryItem.h"
+#include "SurvivalGame/Core/UI/Inventory/Spatial/InventoryGrid.h"
 #include "SlottedItem.generated.h"
 
-class UInventoryGrid;
+
 class UImage;
 class UInventoryItem;
 class UTextBlock;
