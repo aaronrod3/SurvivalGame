@@ -2,10 +2,7 @@
 
 
 #include "InventoryGrid.h"
-
-#include "MovieSceneClipboard.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
-#include "Chaos/Math/Poisson.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "SurvivalGame/Character/Inventory/InventoryComponent.h"
