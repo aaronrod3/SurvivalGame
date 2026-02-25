@@ -12,6 +12,24 @@ UInventoryItem* FItemManifest::Manifest(UObject* NewOuter) const
 	return Item;
 }
 
+FText FItemManifest::GetItemName() const
+{
+	/*
+	const FNameFragment* NameFragment = GetFragmentOfType<FNameFragment>();
+	if (NameFragment)
+	{
+		return NameFragment->GetItemName();
+	}
+	return FText::FromString(TEXT("Unknown Item"));
+	*/
+	
+	// Stub: Use ItemType for debugging until NameFragment is ready
+	if (ItemType.IsValid())
+	{
+		return FText::FromString(ItemType.ToString());
+	}
+	return FText::FromString(TEXT("Unknown Item"));
+}
 
 void FItemManifest::SpawnPickupActor(const UObject* WorldContextObject, const FVector& SpawnLocation,
 	const FRotator& SpawnRotation)
@@ -23,12 +41,7 @@ void FItemManifest::SpawnPickupActor(const UObject* WorldContextObject, const FV
 	
 	// set the item manifest, item category, item type, etc
 	UItemComponent* ItemComp = SpawnedActor->FindComponentByClass<UItemComponent>();
-	if (!ItemComp)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Spawned actor does not have an item component"));
-		SpawnedActor->Destroy();
-		return;
-	}
+	check(ItemComp);
 	
 	ItemComp->InitItemManifest(*this);
 }

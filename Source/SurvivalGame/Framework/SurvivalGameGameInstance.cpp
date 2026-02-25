@@ -2,7 +2,7 @@
 
 
 #include "SurvivalGameGameInstance.h"
-#include "SurvivalGame/Character/PlayerController/SurvivalPlayerController.h"
+#include "SurvivalGame/Character/PlayerController/MyPlayerController.h"
 
 // Defines the log category 
 // w/out this the linker would fail
@@ -38,10 +38,10 @@ USurvivalGameGameInstance::USurvivalGameGameInstance(const FObjectInitializer& O
 
 
 // get primary controller
-ASurvivalPlayerController* USurvivalGameGameInstance::GetPrimaryPlayerController() const
+AMyPlayerController* USurvivalGameGameInstance::GetPrimaryPlayerController() const
 {
 	// safely cast the primary controller from the base type to your custom controller type
-	return Cast<ASurvivalPlayerController>(Super::GetPrimaryPlayerController(false));
+	return Cast<AMyPlayerController>(Super::GetPrimaryPlayerController(false));
 	
 }
 

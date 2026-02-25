@@ -5,9 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "SurvivalGame/Core/Data/Items/InventoryItem.h"
-#include "SurvivalGame/Core/UI/Inventory/Spatial/InventoryGrid.h"
 #include "SlottedItem.generated.h"
-
 
 class UImage;
 class UInventoryItem;
@@ -23,37 +21,22 @@ class SURVIVALGAME_API USlottedItem : public UUserWidget
 
 public:
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
 	
 	bool GetIsStackable() const {return bIsStackable;}
 	void SetIsStackable(bool bStackable) {bIsStackable = bStackable;}
 	UImage* GetImage_Icon() const {return Image_Icon;}
 	void SetGridIndex(int32 Index) {GridIndex = Index;}
-	
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 GetGridIndex() const {return GridIndex;}
-	
 	void SetGridDimensions(FIntPoint Dimensions) {GridDimensions = Dimensions;}
 	FIntPoint GetGridDimensions() const {return GridDimensions;}
 	void SetInventoryItem(UInventoryItem* Item);
-	
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	UInventoryItem* GetInventoryItem() const {return InventoryItem.Get();}
-	
-	
 	void SetImageBrush(const FSlateBrush& Brush) const;
 	void UpdateStackCount(int32 StackCount);
-	
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void SetOwningGrid(UInventoryGrid* InGrid) { OwningGrid = InGrid; }
-	
 	
 	FSlottedItemClicked OnSlottedItemClicked;
 	
 private:
-	
-	UPROPERTY()
-	TWeakObjectPtr<UInventoryGrid> OwningGrid = nullptr;
 	
 	//UPROPERTY()
 	//FSlateBrush ImageBrush;

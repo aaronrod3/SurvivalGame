@@ -7,7 +7,7 @@
 #include "SurvivalGameGameInstance.generated.h"
 
 // Forward declare classes
-class ASurvivalPlayerController;
+class AMyPlayerController;
 class UObject; 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSurvivalGameGameInstance, Log, All);
@@ -22,7 +22,7 @@ public:
 	USurvivalGameGameInstance(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	
 	// called to retrieve the primary player controller
-	ASurvivalPlayerController* GetPrimaryPlayerController() const;
+	AMyPlayerController* GetPrimaryPlayerController() const;
 	
 protected:
 	// called to initialize game instance on game startup

@@ -16,7 +16,6 @@ void UItemPopUp::NativeOnInitialized()
 	Slider_Split->OnValueChanged.AddDynamic(this, &ThisClass::UItemPopUp::SliderValueChanged);
 	Button_Drop->OnClicked.AddDynamic(this, &ThisClass::UItemPopUp::DropButtonClicked);
 	Button_Consume->OnClicked.AddDynamic(this, &ThisClass::UItemPopUp::ConsumeButtonClicked);
-	Button_Assign->OnClicked.AddDynamic(this, &UItemPopUp::AssignButtonClicked);
 }
 
 void UItemPopUp::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
@@ -95,30 +94,4 @@ void UItemPopUp::CollapsedSplitButton() const
 void UItemPopUp::CollapsedConsumeButton() const
 {
 	Button_Consume->SetVisibility(ESlateVisibility::Collapsed);
-}
-
-void UItemPopUp::AssignButtonClicked()
-{
-	if (OnAssign.IsBound())
-	{
-		OnAssign.Execute(GridIndex);
-	}
-	
-	RemoveFromParent();
-}
-
-void UItemPopUp::CollapseAssignButton() const
-{
-	if (Button_Assign)
-	{
-		Button_Assign->SetVisibility(ESlateVisibility::Collapsed);
-	}
-}
-
-void UItemPopUp::ShowAssignButton() const
-{
-	if (Button_Assign)
-	{
-		Button_Assign->SetVisibility(ESlateVisibility::Visible);
-	}
 }

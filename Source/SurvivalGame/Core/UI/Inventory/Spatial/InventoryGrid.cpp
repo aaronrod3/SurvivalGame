@@ -2,7 +2,10 @@
 
 
 #include "InventoryGrid.h"
+
+#include "MovieSceneClipboard.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Chaos/Math/Poisson.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "SurvivalGame/Character/Inventory/InventoryComponent.h"
@@ -15,7 +18,6 @@
 #include "SurvivalGame/Core/UI/Utilities/InventoryStatics.h"
 #include "SurvivalGame/Core/UI/Utilities/WidgetUtilities.h"
 #include "SurvivalGame/Core/UI/Inventory/ItemPopUp/ItemPopUp.h"
-#include "SpatialInventory.h"
 
 
 void UInventoryGrid::NativeOnInitialized()
@@ -284,6 +286,33 @@ void UInventoryGrid::ConstructGrid()
 	
 }
 
+bool UInventoryGrid::MatchesPlacementRules(const UInventoryItem* Item) const
+{
+	const FItemPlacementRules& Rules = Item->GetItemManifest().GetPlacementRules();
+
+	switch (RestrictionType)
+	{
+	case EGridRestrictionType::Equipment:
+		return Rules.EquipmentSlot == RequiredEquipmentType;
+	case EGridRestrictionType::Storage:
+		// Accept any item that can go in storage
+		if (!Rules.bCanGoInStorage) return false;
+            
+		// Check specific storage restrictions (if any)
+		if (Rules.AllowedStorageGrids.Num() > 0)
+		{
+			return Rules.AllowedStorageGrids.Contains(Item_Category);
+		}
+		return true;
+            
+	case EGridRestrictionType::Specialized:
+		// Custom logic (e.g., only medical items)
+		return AllowedItemTypes.Contains(Item->GetItemManifest().GetItemCategory());
+            
+	default:
+		return false;
+	}
+}
 
 
 FSlotAvailabilityResult UInventoryGrid::HasRoomForItem(const UItemComponent* ItemComponent)
@@ -381,18 +410,6 @@ void UInventoryGrid::AddItemToIndices(const FSlotAvailabilityResult& Result, UIn
 
 void UInventoryGrid::AddItemAtIndex(UInventoryItem* Item, const int32 Index, const bool bStackable, const int32 StackAmount)
 {
-	// hard safety, never allow two widgets to exist at the index
-	if (TObjectPtr<USlottedItem>* ExistingItem = SlottedItems.Find(Index) )
-	{
-		if (IsValid(ExistingItem->Get()))
-		{
-			ExistingItem->Get()->RemoveFromParent();
-		}
-		SlottedItems.Remove(Index);
-	}
-	
-	
-	
 	// Get grid fragments
 	const FGridFragment* GridFragment = GetFragment<FGridFragment>(Item, FragmentTags::GridFragment);
 	// get image fragment
@@ -407,10 +424,6 @@ void UInventoryGrid::AddItemAtIndex(UInventoryItem* Item, const int32 Index, con
 	// store new widget in a container
 	SlottedItems.Add(Index, SlottedItem);
 }
-
-
-
-
 
 USlottedItem* UInventoryGrid::CreateSlottedItem(UInventoryItem* Item, 
 												const bool bStackable, 
@@ -519,8 +532,8 @@ bool UInventoryGrid::CheckSlotConstraints(const UGridSlots* GridSlot,
 	// is this the same type of item were trying to add
 	if (!DoesItemTypeMatch(SubItem, ItemType)) return false;
 	
-	const int32 ExistingStackCount = GetStackAmount(SubGridSlot);
-	if (ExistingStackCount >= MaxStackSize) return false;
+	// if stackable, is it at max stack capacity already
+	if (GridSlot->GetStackCount() >= MaxStackSize) return false;
 	
 	
 	return true;
@@ -540,25 +553,6 @@ bool UInventoryGrid::HasValidItem(const UGridSlots* GridSlot) const
 bool UInventoryGrid::IsUpperLeftSlot(const UGridSlots* GridSlot, const UGridSlots* SubGridSlot) const
 {
 	return SubGridSlot->GetUpperLeftIndex() == GridSlot->GetIndex();
-}
-
-int32 UInventoryGrid::FindUpperLeftIndexForItem(const UInventoryItem* Item) const
-{
-	if (!IsValid(Item)) return INDEX_NONE;
-
-	for (int32 i = 0; i < GridSlots.Num(); i++)
-	{
-		const UGridSlots* GridSlot = GridSlots[i];
-		if (!IsValid(GridSlot)) continue;
-		if (GridSlot->GetInventoryItem().Get() != Item) continue;
-
-		// A slot is the upper-left anchor when its own index equals its stored upper-left index
-		if (GridSlot->GetUpperLeftIndex() == GridSlot->GetIndex())
-		{
-			return i;
-		}
-	}
-	return INDEX_NONE;
 }
 
 bool UInventoryGrid::DoesItemTypeMatch(const UInventoryItem* SubItem, const FGameplayTag& ItemType) const
@@ -657,7 +651,6 @@ void UInventoryGrid::RemoveItemFromGrid(UInventoryItem* InventoryItem, const int
 		SlottedItems.RemoveAndCopyValue(GridIndex, FoundSlottedItem);
 		FoundSlottedItem->RemoveFromParent();
 	}
-	
 }
 
 
@@ -698,9 +691,6 @@ void UInventoryGrid::AddStacks(const FSlotAvailabilityResult& Result)
 	
 	for (const auto& Availability : Result.SlotAvailabilities)
 	{
-		// guard against indices computed by a different grid
-		if (!GridSlots.IsValidIndex(Availability.Index)) continue;
-		
 		if (Availability.bItemAtIndex)
 		{
 			const auto& GridSlot = GridSlots[Availability.Index];
@@ -718,7 +708,6 @@ void UInventoryGrid::AddStacks(const FSlotAvailabilityResult& Result)
 
 void UInventoryGrid::OnSlottedItemClicked(int32 GridIndex, const FPointerEvent& MouseEvent)
 {
-	
 	check(GridSlots.IsValidIndex(GridIndex));
 	UInventoryItem* ClickedInventoryItem = GridSlots[GridIndex]->GetInventoryItem().Get();
 	
@@ -811,7 +800,6 @@ void UInventoryGrid::CreateItemPopUp(const int32 GridIndex)
 		ItemPopUp->CollapseSplitButton();
 	}
 	
-	
 	ItemPopUp->OnDrop.BindDynamic(this, &ThisClass::OnPopUpMenuDrop);
 	
 	if (RightClickedItem->IsUsable())
@@ -823,7 +811,6 @@ void UInventoryGrid::CreateItemPopUp(const int32 GridIndex)
 		ItemPopUp->CollapseConsumeButton();
 	}
 	
-
 }
 
 void UInventoryGrid::OnGridSlotClicked(int32 GridIndex, const FPointerEvent& MouseEvent)
@@ -846,47 +833,9 @@ void UInventoryGrid::OnGridSlotClicked(int32 GridIndex, const FPointerEvent& Mou
 
 void UInventoryGrid::PutDownOnIndex(const int32 Index)
 {
-	if (!IsValid(HoverItem) || !IsValid(HoverItem->GetInventoryItem())) return;
-	
-	UInventoryItem* ItemToPlace = HoverItem->GetInventoryItem();
-	
-	// Enforce restriction system
-	if (!MatchesPlacementRules(ItemToPlace))
-	{
-		// Cancel: return item to where it came from
-		const int32 PreviousIndex = HoverItem->GetPreviousGridIndex();
-		if (GridSlots.IsValidIndex(PreviousIndex))
-		{
-			AddItemAtIndex(ItemToPlace, PreviousIndex, HoverItem->IsStackable(), HoverItem->GetStackCount());
-			UpdateGridSlot(ItemToPlace, PreviousIndex, HoverItem->IsStackable(), HoverItem->GetStackCount());
-		}
-		ClearHoverItem();
-		return;
-	}
-	
-	// Enforce collision/fit
-	const FGridFragment* GridFragment = GetFragment<FGridFragment>(ItemToPlace, FragmentTags::GridFragment);
-	if (!GridFragment) return;
-	
-	const FIntPoint DropCoordinate = UWidgetUtilities::GetPositionFromIndex(Index, Columns);
-	const FSpaceQueryResult QueryResult = CheckHoverPosition(DropCoordinate,GridFragment->GetGridSize());
-	if (!QueryResult.bHasSpace)
-	{
-		// Same return to origin behavior
-		const int32 PreviousIndex = HoverItem->GetPreviousGridIndex();
-		if (!GridSlots.IsValidIndex(PreviousIndex))
-		{
-			AddItemAtIndex(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
-			UpdateGridSlot(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
-		}
-		ClearHoverItem();
-		return;
-	}
-	
-	AddItemAtIndex(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
-	UpdateGridSlot(ItemToPlace, Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
+	AddItemAtIndex(HoverItem->GetInventoryItem(), Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
+	UpdateGridSlot(HoverItem->GetInventoryItem(), Index, HoverItem->IsStackable(), HoverItem->GetStackCount());
 	ClearHoverItem();
-	
 }
 
 void UInventoryGrid::ClearHoverItem()
@@ -1111,29 +1060,6 @@ void UInventoryGrid::OnPopUpMenuConsume(int32 Index)
 	
 }
 
-void UInventoryGrid::OnPopUpMenuAssign(int32 Index)
-{
-	if (!SpatialInventory.IsValid())
-	{
-		return;
-	}
-
-	// Get the item at this index
-	if (UGridSlots* GridSlot = GridSlots[Index])
-	{
-		if (UInventoryItem* Item = GridSlot->GetInventoryItem().Get())
-		{
-			// Close popup
-			if (ItemPopUp)
-			{
-				ItemPopUp->RemoveFromParent();
-				ItemPopUp = nullptr;
-			}
-		}
-	}
-
-}
-
 
 FVector2D UInventoryGrid::GetDrawSize(const FGridFragment* GridFragment) const 
 {
@@ -1149,16 +1075,6 @@ void UInventoryGrid::SetSlottedItemImage(const USlottedItem* SlottedItem, const 
 	Brush.ImageSize = GetDrawSize(GridFragment);
 	SlottedItem->SetImageBrush(Brush);
 }
-
-
-
-
-
-
-
-
-
-
 
 
 

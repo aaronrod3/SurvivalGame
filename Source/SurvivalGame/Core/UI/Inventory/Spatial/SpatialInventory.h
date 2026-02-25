@@ -3,13 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InventoryGrid.h"
+#include "Components/WidgetSwitcher.h"
 #include "SurvivalGame/Core/UI/Inventory/InventoryBase.h"
 #include "SpatialInventory.generated.h"
 
-class UInventoryGrid;
 class UCanvasPanel;
-class UQuickSlotBar;
-
 
 /**
  * 
@@ -24,10 +23,12 @@ public:
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	
 	virtual FSlotAvailabilityResult HasRoomForItem(UItemComponent* ItemComponent) const override;
-
+	
+	// Helper methods
+	UInventoryGrid* GetGridForEquipmentSlot(EItem_Category Slot) const;
+	TArray<UInventoryGrid*> GetAllStorageGrids() const;
 	
 private:
-	
 	
 	// widget switcher, may not be used since everything will be on same screen
 	//UPROPERTY(meta = (BindWidget))
@@ -51,14 +52,6 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryGrid> Grid_Pants;
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UInventoryGrid> Grid_Weapon_Primary;
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UInventoryGrid> Grid_Weapon_Holster;
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UInventoryGrid> Grid_Weapon_Secondary;
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UInventoryGrid> Grid_Tool;
-	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryGrid> Grid_Rig;
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryGrid> Grid_Rig_Slots;
@@ -74,6 +67,9 @@ private:
 	TObjectPtr<UInventoryGrid> Grid_Pocket_Slots;
 	
 	
+	
+	
+	// add quick slot bar
 	
 	// add stash later
 	

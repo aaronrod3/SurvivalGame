@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "SurvivalGame/Core/UI/Inventory/Types/GridTypes.h"
-#include "GameplayTagContainer.h"
+#include "GamePlayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "SurvivalGame/Core/Data/Items/Fragments/ItemFragment.h"
 #include "ItemManifest.generated.h"
@@ -18,9 +18,15 @@ struct SURVIVALGAME_API FItemManifest
 {
 	GENERATED_BODY()
 	
+public:
+	
 	UInventoryItem* Manifest(UObject* NewOuter) const;
-	EItem_Category GetCategory() const { return ItemCategory; };
+	
+	const FItemPlacementRules& GetPlacementRules() const { return PlacementRules; }
+	FText GetItemName() const;
 	FGameplayTag GetItemType() const {return ItemType;}
+	EItem_Category GetItemCategory() const { return PlacementRules.EquipmentSlot; }
+	
 	
 	template <typename T> requires std::derived_from<T, FItemFragment>
 	const T* GetFragmentOfTypeWithTag(const FGameplayTag& Tag) const;
@@ -40,7 +46,7 @@ private:
 	TArray<TInstancedStruct<FItemFragment>> Fragments;
 	
 	UPROPERTY(EditAnywhere, Category = "Inventory")
-	EItem_Category ItemCategory{EItem_Category::None};
+	FItemPlacementRules PlacementRules;
 	
 	UPROPERTY(EditAnywhere, Category = "Inventory")
 	FGameplayTag ItemType;

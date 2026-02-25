@@ -11,104 +11,63 @@ class UInventoryItem;
  * Grid Restriction Type
  * 
  * Defines how a grid filters items:
- * - Equipment: Only accepts items with specific EquipmentSlot
- * - Storage: Accepts items based on placement rules
- * - QuickSlot: References items in inventory for quick access
+ * - Equipment: Only accepts items with specific EquipmentSlot (e.g., only helmets in head slot)
+ * - Storage: Accepts any item that has bCanGoInStorage = true
+ * - Specialized: Custom filtering using AllowedItemTypes array
  */
 UENUM(BlueprintType)
 enum class EGridRestrictionType : uint8
 {
 	None,
-	Equipment     UMETA(DisplayName = "Equipment Slot"),
-	Storage       UMETA(DisplayName = "Storage Slot"),
-	QuickSlot     UMETA(DisplayName = "Quick Slot")
+	Equipment     UMETA(DisplayName = "Equipment Slot"),    // Only specific type
+	Storage       UMETA(DisplayName = "Storage Slot"),      // Any item
+	Specialized   UMETA(DisplayName = "Specialized Slot")   // Custom logic (meds only, ammo only)
+	// add hotkey bar
+	// add stash
 };
 
 
-
 /**
- * Item Category Hierarchy
+ * Item Category / Equipment Slot Type
  * 
- * Defines the type and placement rules for all items.
+ * DUAL PURPOSE ENUM:
+ * 1. In FItemPlacementRules.EquipmentSlot: Indicates WHICH equipment slot this item occupies
+ * 2. In UInventoryGrid.RequiredEquipmentType: Indicates WHICH equipment type the grid accepts
  * 
- * STRUCTURE:
- * - Root categories define item behavior (Equippable, Usable, Misc)
- * - Sub-categories define specific types
- * - Equipment items occupy dedicated equipment slots
- * - Usable items go in storage or quick slots
- * - Misc items go in storage only
+ * IMPORTANT: 
+ * - "None" means the item is NOT equipment (e.g., medkits, ammo)
+ * - "_Slots" categories are STORAGE grids, not equipment slots
+ * 
+ * Example:
+ * - A helmet has EquipmentSlot = Head (occupies head equipment slot)
+ * - A medkit has EquipmentSlot = None (not equipment, storage only)
+ * - Grid_Head has RequiredEquipmentType = Head (only accepts helmets)
+ * - Grid_Backpack_Slots has RestrictionType = Storage (accepts anything)
  */
 UENUM(BlueprintType)
 enum class EItem_Category : uint8
 {
-	None			UMETA(DisplayName = "None"),
+	None			UMETA(DisplayName = "None (Not Equipment)"),
+	// Equipment Categories (worn on body)
+	Head			UMETA(DisplayName = "Head"),
+	Ears			UMETA(DisplayName = "Ears"),
+	Face			UMETA(DisplayName = "Face"),
+	Eye				UMETA(DisplayName = "Eye"),
+	Armband			UMETA(DisplayName = "Armband"),
+	Shirt			UMETA(DisplayName = "Shirt"),
+	Pants			UMETA(DisplayName = "Pants"),
+	Rig				UMETA(DisplayName = "Rig"),
+	Backpack		UMETA(DisplayName = "Backpack"),
+	Belt			UMETA(DisplayName = "Belt"),
+	Pocket			UMETA(DisplayName = "Pocket"),
 	
-	// =============================
-	// EQUIPPABLE ITEMS
-	// Items that occupy dedicated equipment slots on the character
-	// =============================
-	
-	// Head Equipment
-	Head				UMETA(DisplayName = "Head"),
-	Eyewear				UMETA(DisplayName = "Eyewear"),
-	Earwear				UMETA(DisplayName = "Earwear"),
-	Face				UMETA(DisplayName = "Face"),
-	
-	// Body Equipment
-	Armor				UMETA(DisplayName = "Armor"),
-	Armband				UMETA(DisplayName = "Armband"),
-	Shirt				UMETA(DisplayName = "Shirt"),
-	Pants				UMETA(DisplayName = "Pants"),
-	
-	// Storage Equipment (worn containers that provide storage grids)
-	Backpack			UMETA(DisplayName = "Backpack"),
-	Rig					UMETA(DisplayName = "Rig"),
-	Belt				UMETA(DisplayName = "Belt"),
-	
-	// Weapon Equipment
-	Weapon_Primary		UMETA(DisplayName = "Weapon Primary"),
-	Weapon_Secondary	UMETA(DisplayName = "Weapon Secondary"),
-	Weapon_Holster		UMETA(DisplayName = "Weapon Holster"),
-	
-	// Tool Equipment
-	Tool				UMETA(DisplayName = "Tool"),
-	
-	// =============================
-	// USABLE ITEMS
-	// Items that can be used/consumed and go in storage or quick slots
-	// =============================
-	
-	Usable_Medical		UMETA(DisplayName = "Medical"),
-	Usable_Food			UMETA(DisplayName = "Food/Water"),
-	Usable_Key			UMETA(DisplayName = "Keys/Access Cards"),
-	
-	// =============================
-	// MISC ITEMS
-	// Items that only go in storage slots
-	// =============================
-	
-	Misc_Ammo			UMETA(DisplayName = "Ammo"),
-	Misc_Other			UMETA(DisplayName = "Misc")
+	// Storage Categories (containers attached to equipment)
+	// NOTE: These are NOT equipment slots - they're storage grids
+	Rig_Slots		UMETA(DisplayName = "Rig Slots"),
+	Backpack_Slots	UMETA(DisplayName = "Backpack Slots"),
+	Belt_Slots		UMETA(DisplayName = "Belt Slots"),
+	Pocket_Slots	UMETA(DisplayName = "Pocket Slots")
 };
-
-
-/**
- * Storage Grid Type
- * 
- * Defines the type of storage grid, separate from item categories.
- * Used to identify which storage container a grid belongs to.
- */
-UENUM(BlueprintType)
-enum class EStorageGridType : uint8
-{
-	None				UMETA(DisplayName = "None"),
-	Backpack			UMETA(DisplayName = "Backpack Slots"),
-	Rig					UMETA(DisplayName = "Rig Slots"),
-	Belt				UMETA(DisplayName = "Belt Slots"),
-	Pocket				UMETA(DisplayName = "Pocket Slots"),
-	Container			UMETA(DisplayName = "Generic Container")
-};
-
 
 /**
  * Item Placement Rules
@@ -116,34 +75,31 @@ enum class EStorageGridType : uint8
  * Defines WHERE an item can be placed in the inventory system.
  * 
  * DESIGN PHILOSOPHY:
- * - Equippable items have an EquipmentSlot type and can also go in storage
- * - Usable items have EquipmentSlot = None, can go in storage and quick slots
- * - Misc items have EquipmentSlot = None, can only go in storage
+ * - Equipment items (helmets, backpacks) can go in their equipment slot OR storage
+ * - Storage items (medkits, ammo) skip equipment slots and go directly to storage
+ * - Some items (like backpacks) can't be stored inside themselves
  * 
  * EXAMPLES:
  * 
- * HELMET (Equippable):
- *   EquipmentSlot = Head
- *   bCanGoInStorage = true
- *   AllowedStorageGrids = [] (any storage)
+ * HELMET:
+ *   EquipmentSlot = Head              // "I occupy the head equipment slot"
+ *   bCanGoInStorage = true             // "I can also be stored in backpack/rig"
+ *   AllowedStorageGrids = []           // "I can go in ANY storage grid"
  * 
- * MEDKIT (Usable):
- *   EquipmentSlot = Usable_Medical
- *   bCanGoInStorage = true
- *   bCanGoInQuickSlot = true
- *   AllowedStorageGrids = [] (any storage, or specify medical pouches only)
+ * MEDKIT:
+ *   EquipmentSlot = None               // "I'm NOT equipment"
+ *   bCanGoInStorage = true             // "I'm a storage item"
+ *   AllowedStorageGrids = []           // "I can go in ANY storage grid"
  * 
- * AMMO (Misc):
- *   EquipmentSlot = Misc_Ammo
- *   bCanGoInStorage = true
- *   bCanGoInQuickSlot = false
- *   AllowedStorageGrids = [] (or specify ammo pouches only)
+ * BACKPACK:
+ *   EquipmentSlot = Backpack           // "I occupy the backpack equipment slot"
+ *   bCanGoInStorage = false            // "I CANNOT be stored (can't store backpack in backpack)"
+ *   AllowedStorageGrids = []           // (not used since bCanGoInStorage = false)
  * 
- * PRIMARY WEAPON (Equippable):
- *   EquipmentSlot = Weapon_Primary
- *   bCanGoInStorage = true
- *   bCanGoInQuickSlot = false (weapon slots are separate from quick bar)
- *   AllowedStorageGrids = []
+ * MEDICAL ITEM (Specialized):
+ *   EquipmentSlot = None               // "I'm NOT equipment"
+ *   bCanGoInStorage = true             // "I'm a storage item"
+ *   AllowedStorageGrids = [MedPouch]   // "I can ONLY go in medical pouches"
  */
 
 // Item Placement Rules
@@ -153,12 +109,14 @@ struct FItemPlacementRules
 	GENERATED_BODY()
 	
 	/**
-	 * Item Category
+	 * Equipment Slot This Item Occupies
 	 * 
-	 * Determines the type of item and its primary placement:
-	 * - Equippable categories (Head, Weapon_Primary, etc): Can go in equipment slot OR storage
-	 * - Usable categories (Usable_Medical, Usable_Food): Can go in storage AND quick slots
-	 * - Misc categories (Misc_Ammo, Misc_Other): Can only go in storage
+	 * - None: Item is NOT equipment (medkits, ammo, food)
+	 * - Head/Backpack/etc: Item IS equipment and occupies that slot
+	 * 
+	 * When routing items:
+	 * 1. If EquipmentSlot != None → Try equipment grid first
+	 * 2. If EquipmentSlot == None → Skip equipment, go to storage
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
 	EItem_Category EquipmentSlot = EItem_Category::None;
@@ -167,58 +125,42 @@ struct FItemPlacementRules
 	 * Can This Item Go In Storage Grids?
 	 * 
 	 * - true: Item can be placed in storage containers (backpacks, rigs, etc.)
-	 * - false: Item CANNOT be stored
+	 * - false: Item CANNOT be stored (e.g., backpacks can't store themselves)
 	 * 
-	 * Most items should be true.
+	 * Most items should be true. Only set false for special cases.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
 	bool bCanGoInStorage = true;
 	
 	/**
-	 * Can This Item Go In Quick Slots?
-	 * 
-	 * - true: Item can be assigned to quick slot bar (medical, food, consumables)
-	 * - false: Item cannot be quick slotted (equipment, ammo, misc)
-	 * 
-	 * Only Usable items should have this set to true.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
-	bool bCanGoInQuickSlot = false;
-	
-	/**
 	 * Allowed Storage Grids (Optional)
 	 * 
 	 * If EMPTY: Item can go in ANY storage grid
-	 * If POPULATED: Item can ONLY go in these specific storage types
+	 * If POPULATED: Item can ONLY go in these specific storage grids
 	 * 
 	 * Use Cases:
-	 * - Medical items only in medical pouches (use EStorageGridType)
+	 * - Medical items only in med pouches
 	 * - Ammo only in ammo pouches
-	 * - Keys only in secure pockets
+	 * - Keys only in key rings
+	 * 
+	 * NOTE: Only used if bCanGoInStorage = true
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Placement",
 			  meta = (EditCondition = "bCanGoInStorage", EditConditionHides))
-	TArray<EStorageGridType> AllowedStorageGrids;
+	TArray<EItem_Category> AllowedStorageGrids;
 	
 	// Default constructor
-	FItemPlacementRules() 
-		: EquipmentSlot(EItem_Category::None)
-		, bCanGoInStorage(true)
-		, bCanGoInQuickSlot(false)
+	FItemPlacementRules() : EquipmentSlot(EItem_Category::None), bCanGoInStorage(true)
 	{
 	}
 	
 	/**
-	 * Constructor with parameters
+	 * Constructor with Equipment Slot
 	 */
-	FItemPlacementRules(EItem_Category InEquipmentSlot, bool bInCanGoInStorage = true, bool bInCanGoInQuickSlot = false) 
-		: EquipmentSlot(InEquipmentSlot)
-		, bCanGoInStorage(bInCanGoInStorage)
-		, bCanGoInQuickSlot(bInCanGoInQuickSlot)
+	FItemPlacementRules(EItem_Category InEquipmentSlot, bool bInCanGoInStorage = true) : EquipmentSlot(InEquipmentSlot) , bCanGoInStorage(bInCanGoInStorage) 
 	{
+		
 	}
-	
-	
 };
 
 // Info for individual slot

@@ -1,13 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "SurvivalPlayerController.h"
+#include "MyPlayerController.h"
 #include "SurvivalGame/Character/Inventory/InventoryComponent.h"
 #include "SurvivalGame/Core/UI/HUD/MainHUDWidget.h"
 #include "SurvivalGame/Framework/SurvivalGameGameInstance.h"
 #include "SurvivalGame/Framework/Subsystems/SurvivalGameOnlineSubsystem.h"
-#include "SurvivalGame/Core/UI/Inventory/QuickSlotBar/QuickSlotBar.h"
-#include "SurvivalGame/Core/UI/Inventory/Spatial/SpatialInventory.h"
+
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
@@ -15,24 +14,24 @@
 #include "SurvivalGame/Core/Data/Items/ItemComponent.h"
 
 
-ASurvivalPlayerController::ASurvivalPlayerController()
+AMyPlayerController::AMyPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	
-	// initialize trace length
+	// initialize tracelength
 	TraceLength = 500.0f;
 	
 	
 }
 
-void ASurvivalPlayerController::Tick(float DeltaTime)
+void AMyPlayerController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
 	TraceForItem();
 }
 
-void ASurvivalPlayerController::BeginPlay()
+void AMyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
@@ -40,7 +39,8 @@ void ASurvivalPlayerController::BeginPlay()
 	UE_LOG(LogInventory, Log, TEXT("Begin Play for Player Controller"));
 	
 	
-	// Input mapping
+	// MOVED HERE
+	// Input mapping now lives here
 	if (IsLocalController())
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
@@ -103,23 +103,24 @@ void ASurvivalPlayerController::BeginPlay()
 	}
 }
 
-void ASurvivalPlayerController::SetupInputComponent()
+void AMyPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 	
+	// MOVED HERE
 	// Check the UInputComponent passed to this function and cast it to an UEnhancedInputComponent
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent))
 	{
 		// Interact Actions
-		EnhancedInputComponent->BindAction(PrimaryInteractAction, ETriggerEvent::Triggered, this, &ASurvivalPlayerController::PrimaryInteract);
+		EnhancedInputComponent->BindAction(PrimaryInteractAction, ETriggerEvent::Triggered, this, &AMyPlayerController::PrimaryInteract);
 		
 		// Inventory Action
-		EnhancedInputComponent->BindAction(ToggleInventoryAction, ETriggerEvent::Triggered, this, &ASurvivalPlayerController::ToggleInventory);
+		EnhancedInputComponent->BindAction(ToggleInventoryAction, ETriggerEvent::Triggered, this, &AMyPlayerController::ToggleInventory);
 	} 
 }
 
 
-void ASurvivalPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void AMyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 }
@@ -127,16 +128,15 @@ void ASurvivalPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 /***  INVENTORY FUNCTIONS ***/
 
-void ASurvivalPlayerController::ToggleInventory()
+void AMyPlayerController::ToggleInventory()
 {
 	if (!InventoryComponent.IsValid()) return;
 	InventoryComponent->ToggleInventoryMenu();
-	
 }
 
 
 /*** HUD and UI ***/
-void ASurvivalPlayerController::CreateHUDWidget()
+void AMyPlayerController::CreateHUDWidget()
 {
 	if (!IsLocalController()) return;
 	HUDWidget = CreateWidget<UMainHUDWidget>(this, HUDWidgetClass);
@@ -148,7 +148,7 @@ void ASurvivalPlayerController::CreateHUDWidget()
 
 
 // Function to trace for an item
-void ASurvivalPlayerController::TraceForItem()
+void AMyPlayerController::TraceForItem()
 {
 	// check if GEngine and GameViewport is valid
 	if (!IsValid(GEngine) || !IsValid(GEngine->GameViewport)) return ;
@@ -205,7 +205,7 @@ void ASurvivalPlayerController::TraceForItem()
 }
 
 
-void ASurvivalPlayerController::PrimaryInteract()
+void AMyPlayerController::PrimaryInteract()
 {
 	if (!ThisActor.IsValid()) return;
 	

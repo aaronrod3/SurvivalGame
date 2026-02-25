@@ -30,7 +30,6 @@ public:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float DeltaTime) override;
 	
-	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent.Get(); }
 	
 	EItem_Category GetItemCategory() const { return Item_Category; };
 	FSlotAvailabilityResult HasRoomForItem(const UItemComponent* ItemComponent);
@@ -44,7 +43,7 @@ public:
 	void HideCursor();
 	void SetOwningCanvas(UCanvasPanel* OwningCanvas);
 	
-	
+
 private:
 	
 	TWeakObjectPtr<UInventoryComponent> InventoryComponent;
@@ -53,8 +52,10 @@ private:
 	void ConstructGrid();
 	FSlotAvailabilityResult HasRoomForItem(const UInventoryItem* Item);
 	FSlotAvailabilityResult HasRoomForItem(const FItemManifest& ItemManifest);
+	
 	void AddItemToIndices(const FSlotAvailabilityResult& Result, UInventoryItem* NewItem);
-	bool MatchesCategory(const UInventoryItem* Item) const;
+	
+	bool MatchesPlacementRules(const UInventoryItem* Item) const;
 	
 	
 	
@@ -127,8 +128,64 @@ private:
 	
 	
 	
+	// =============================
+	// GRID CONFIGURATION PROPERTIES
+	// =============================
+    
+	/**
+	 * Grid Restriction Type
+	 * 
+	 * Determines how this grid filters items:
+	 * - Equipment: Only accepts items with matching RequiredEquipmentType
+	 * - Storage: Accepts any item with bCanGoInStorage = true
+	 * - Specialized: Accepts items in AllowedItemTypes array
+	 * 
+	 * Configure in Blueprint:
+	 * - Equipment grids (Grid_Head): Set to "Equipment"
+	 * - Storage grids (Grid_Backpack_Slots): Set to "Storage"
+	 */
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
+	EGridRestrictionType RestrictionType = EGridRestrictionType::Storage;
+	
+	/**
+	* Required Equipment Type
+	* 
+	* For Equipment grids: Which equipment type this grid accepts.
+	* 
+	* Example:
+	* - Grid_Head: Set to "Head" (only accepts helmets)
+	* - Grid_Backpack: Set to "Backpack" (only accepts backpacks)
+	* 
+	* Only visible/used when RestrictionType = Equipment
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory", 
+		meta = (AllowPrivateAccess = "true", 
+			EditCondition = "RestrictionType == EGridRestrictionType::Equipment", EditConditionHides))
+	EItem_Category RequiredEquipmentType = EItem_Category::None;
+	
+	/**
+	 * Allowed Item Types
+	 * 
+	 * For Specialized grids: Which item categories this grid accepts.
+	 * 
+	 * Example:
+	 * - Medical Pouch: Add "Medical", "Consumable"
+	 * - Ammo Pouch: Add "Ammo", "Magazine"
+	 * 
+	 * Only visible/used when RestrictionType = Specialized
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory",
+			  meta = (AllowPrivateAccess = "true",
+					  EditCondition = "RestrictionType == EGridRestrictionType::Specialized",
+					  EditConditionHides))
+	TArray<EItem_Category> AllowedItemTypes;
+	
+	
+	// remove after full refactor
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	EItem_Category Item_Category;
+	
 	
 	
 	// =============================
@@ -187,10 +244,6 @@ private:
 	
 	UFUNCTION()
 	void OnPopUpMenuConsume(int32 Index);
-	
-	UFUNCTION()
-	void OnPopUpMenuAssign(int32 Index);
-
 	
 	
 	
