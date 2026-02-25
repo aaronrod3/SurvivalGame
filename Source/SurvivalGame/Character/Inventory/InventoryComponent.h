@@ -41,6 +41,7 @@ public:
 	void Server_DropItem(UInventoryItem* Item, int32 StackCount);
 	
 	void ToggleInventoryMenu();
+	UInventoryBase* GetInventoryMenu() const {return InventoryMenu.Get();}
 	void AddRepSubObj(UObject* SubObj);
 	void SpawnDroppedItem(UInventoryItem* Item, int32 StackCount);
 

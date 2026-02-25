@@ -7,6 +7,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "SurvivalGame/Core/UI/HUD/MainHUDWidget.h"
+#include "SurvivalGame/Core/UI/Inventory/QuickSlotBar/QuickSlotBar.h"
 #include "SurvivalPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -45,7 +46,12 @@ private:
 	TObjectPtr<UInputAction> ToggleInventoryAction;
 	
 	
-	/*** INVENTORY ***/
+	/*** 
+	 *
+	 * INVENTORY
+	 * 
+	 */
+	
 	// Weak pointer reference to inventory
 	TWeakObjectPtr<UInventoryComponent> InventoryComponent;
 	
@@ -56,16 +62,30 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void ToggleInventory();
 	
-	/*** UI ***/
+	
+	
+	/*** 
+	 *
+	 * UI
+	 * 
+	 */
 	UPROPERTY(EditDefaultsOnly, Category = "HUD")
 	TSubclassOf<UMainHUDWidget> HUDWidgetClass;
 	UPROPERTY()
 	TObjectPtr<UMainHUDWidget> HUDWidget;
 	
+	
 	UPROPERTY(EditDefaultsOnly, Category = "HUD")
 	double TraceLength;
 	UPROPERTY(EditDefaultsOnly, Category = "HUD")
 	TEnumAsByte<ECollisionChannel> TraceChannel;
+	
+	
+	
+	
+	
+	
+	
 	
 	// current/last actor hit by line trace
 	TWeakObjectPtr<AActor> ThisActor;

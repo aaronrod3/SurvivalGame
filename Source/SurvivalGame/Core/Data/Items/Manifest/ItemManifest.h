@@ -18,15 +18,9 @@ struct SURVIVALGAME_API FItemManifest
 {
 	GENERATED_BODY()
 	
-public:
-	
 	UInventoryItem* Manifest(UObject* NewOuter) const;
-	
-	const FItemPlacementRules& GetPlacementRules() const { return PlacementRules; }
-	FText GetItemName() const;
+	EItem_Category GetCategory() const { return ItemCategory; };
 	FGameplayTag GetItemType() const {return ItemType;}
-	EItem_Category GetItemCategory() const { return PlacementRules.EquipmentSlot; }
-	
 	
 	template <typename T> requires std::derived_from<T, FItemFragment>
 	const T* GetFragmentOfTypeWithTag(const FGameplayTag& Tag) const;
@@ -46,7 +40,7 @@ private:
 	TArray<TInstancedStruct<FItemFragment>> Fragments;
 	
 	UPROPERTY(EditAnywhere, Category = "Inventory")
-	FItemPlacementRules PlacementRules;
+	EItem_Category ItemCategory{EItem_Category::None};
 	
 	UPROPERTY(EditAnywhere, Category = "Inventory")
 	FGameplayTag ItemType;

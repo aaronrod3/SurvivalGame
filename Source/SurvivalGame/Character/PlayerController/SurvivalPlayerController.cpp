@@ -6,7 +6,8 @@
 #include "SurvivalGame/Core/UI/HUD/MainHUDWidget.h"
 #include "SurvivalGame/Framework/SurvivalGameGameInstance.h"
 #include "SurvivalGame/Framework/Subsystems/SurvivalGameOnlineSubsystem.h"
-
+#include "SurvivalGame/Core/UI/Inventory/QuickSlotBar/QuickSlotBar.h"
+#include "SurvivalGame/Core/UI/Inventory/Spatial/SpatialInventory.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
@@ -130,6 +131,7 @@ void ASurvivalPlayerController::ToggleInventory()
 {
 	if (!InventoryComponent.IsValid()) return;
 	InventoryComponent->ToggleInventoryMenu();
+	
 }
 
 
